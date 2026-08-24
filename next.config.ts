@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  serverExternalPackages: ["edge-tts.js", "ws"],
+};
 export default nextConfig;
