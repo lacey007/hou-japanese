@@ -4,6 +4,7 @@ node_modules
 data/*.db*
 data/audio-cache/
 .env*.local
+.github-token
 *.log
 .pnpm-store/
 work/
