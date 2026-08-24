@@ -3,6 +3,7 @@
 import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Image as ImageIcon, Languages, LoaderCircle, Pause, Play, Repeat1 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { manualBusinessAnnotation, readingForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
+import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 type Page = { page: number; image: string; segments: string[]; groups: { title: string; lines: string[] }[] };
 
@@ -27,9 +28,8 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const page = pages[pageIndex];
   const group = page.groups[segment];
   useEffect(() => {
-    fetch("/api/progress?lessonId=business-japanese").then(r => r.json()).then(value => {
-      if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));
-    });
+    const value = getLessonProgress("business-japanese");
+    if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));
   }, [pages.length]);
   useEffect(() => {
     audioPlayer.current?.pause();
@@ -49,7 +49,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     return () => { cancelled = true; };
   }, [group, page.page]);
 
-  const save = (nextPage: number) => fetch("/api/progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId: "business-japanese", position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 }) });
+  const save = (nextPage: number) => saveProgress({ lessonId: "business-japanese", position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 });
   const changePage = (next: number) => { const bounded = Math.max(0, Math.min(pages.length - 1, next)); setPageIndex(bounded); setSegment(0); void save(bounded); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const changeSegment = (next: number) => {
     if (next < 0) return segment > 0 ? setSegment(segment - 1) : changePage(pageIndex - 1);
@@ -84,7 +84,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   };
   const toggle = () => { if (playing || loading) stopAudio(); else void speak(); };
   const groupWords = group ? [...new Map(group.lines.flatMap(wordsForBusinessLine).map(word => [word.surface, word])).values()] : [];
-  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { await fetch("/api/vocabulary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId: "business-japanese", ...word }) }); setSaved(items => [...new Set([...items, word.surface])]); };
+  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { saveLocalWord({ lessonId: "business-japanese", ...word }); setSaved(items => [...new Set([...items, word.surface])]); };
   const speakLine = async (text: string, key: string) => {
     await playNatural(cleanSpokenText(text), key);
   };

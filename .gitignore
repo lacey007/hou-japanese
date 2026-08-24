@@ -6,6 +6,7 @@ data/audio-cache/
 .env*.local
 .github-token
 *.log
+*.tsbuildinfo
 .pnpm-store/
 work/
 vendor/

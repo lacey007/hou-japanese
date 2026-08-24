@@ -5,13 +5,14 @@ import { ArrowRight, BookMarked, Clock3, Flame, Headphones, MoveRight, Play, Spr
 import { useEffect, useState } from "react";
 import { lessons } from "@/lib/content";
 import LessonCard from "./LessonCard";
+import { getProgress, getWords } from "@/lib/local-study";
 
 type Progress = { lessonId: string; percent: number; updatedAt: string };
 
 export default function HomeClient() {
   const [progress, setProgress] = useState<Progress[]>([]);
   const [wordCount, setWordCount] = useState(0);
-  useEffect(() => { Promise.all([fetch("/api/progress").then(r => r.json()), fetch("/api/vocabulary").then(r => r.json())]).then(([p, words]) => { setProgress(p); setWordCount(words.length); }); }, []);
+  useEffect(() => { setProgress(getProgress()); setWordCount(getWords().length); }, []);
   const latest = lessons.find(l => l.id === progress[0]?.lessonId) ?? lessons[0];
   const latestPercent = progress.find(p => p.lessonId === latest.id)?.percent ?? 0;
   return <>

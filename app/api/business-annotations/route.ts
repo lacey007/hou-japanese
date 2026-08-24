@@ -1,5 +1,3 @@
-import { getDb } from "@/lib/db";
-
 export const runtime = "nodejs";
 type Annotation = { text: string; reading: string; meaning: string };
 
@@ -23,15 +21,6 @@ async function generate(text: string): Promise<Annotation> {
 export async function POST(request: Request) {
   const body = await request.json() as { lines?: string[] };
   const lines = [...new Set((body.lines ?? []).filter(Boolean))].slice(0, 60);
-  const db = getDb();
-  const select = db.prepare("SELECT text, reading, meaning FROM business_annotations WHERE text = ?");
-  const insert = db.prepare("INSERT OR REPLACE INTO business_annotations (text, reading, meaning, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
-  const result = await Promise.all(lines.map(async text => {
-    const cached = select.get(text) as Annotation | undefined;
-    if (cached && !cached.meaning.includes("暂时无法")) return cached;
-    const annotation = await generate(text);
-    insert.run(annotation.text, annotation.reading, annotation.meaning);
-    return annotation;
-  }));
+  const result = await Promise.all(lines.map(generate));
   return Response.json(result);
 }

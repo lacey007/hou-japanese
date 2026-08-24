@@ -1,89 +1,50 @@
-import { spawn } from "node:child_process";
-import fs from "node:fs";
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
+import { Communicate } from "edge-tts.js";
 import pages from "@/data/business-pages.json";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const voices = { nanami: "ja-JP-NanamiNeural", keita: "ja-JP-KeitaNeural" } as const;
+type VoiceKey = keyof typeof voices;
 
-function pythonCommand() {
-  if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
-  if (process.platform !== "win32") return "python3";
-  return "C:\\Users\\bhou\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
-}
-
-function dataPath(...parts: string[]) {
-  return path.join(process.env.DATA_DIR || path.join(process.cwd(), "data"), ...parts);
-}
-
-function run(command: string, args: string[]) {
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { windowsHide: true });
-    let error = "";
-    child.stderr.on("data", chunk => { error += chunk.toString(); });
-    child.on("error", reject);
-    child.on("close", code => code === 0 ? resolve() : reject(new Error(error || `TTS exited ${code}`)));
-  });
-}
-
-async function naturalAudio(text: string, voiceKey: keyof typeof voices) {
-  const cache = dataPath("audio-cache", voiceKey, "natural-lines");
-  fs.mkdirSync(cache, { recursive: true });
-  const id = crypto.createHash("sha256").update(text).digest("hex");
-  const target = path.join(cache, `${id}.mp3`);
-  if (!fs.existsSync(target) || fs.statSync(target).size < 1000) {
-    const python = pythonCommand();
-    const temporary = `${target}.${process.pid}.tmp.mp3`;
-    try {
-      await run(python, [path.join(process.cwd(), "scripts", "edge-tts-one.py"), text, voices[voiceKey], temporary]);
-      fs.renameSync(temporary, target);
-    } catch (error) {
-      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-      console.error("Natural line TTS failed", error);
-      return new Response("Natural voice generation failed", { status: 503 });
-    }
+async function naturalAudio(text: string, voiceKey: VoiceKey) {
+  const target = path.join(os.tmpdir(), `hibiki-${crypto.randomUUID()}.mp3`);
+  try {
+    await new Communicate(text, voices[voiceKey]).save(target);
+    const audio = await fs.readFile(target);
+    return new Response(audio, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=86400" } });
+  } catch (error) {
+    console.error("Natural TTS failed", error);
+    return new Response("Natural voice generation failed", { status: 503 });
+  } finally {
+    await fs.unlink(target).catch(() => undefined);
   }
-  return new Response(fs.readFileSync(target), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=31536000" } });
 }
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const voiceKey = url.searchParams.get("voice") as VoiceKey;
   const directText = url.searchParams.get("text")?.trim();
-  const directVoice = url.searchParams.get("voice") as keyof typeof voices;
   if (directText) {
-    if (directText.length > 5000 || !voices[directVoice]) return new Response("Invalid request", { status: 400 });
-    return naturalAudio(directText, directVoice);
+    if (directText.length > 5000 || !voices[voiceKey]) return new Response("Invalid request", { status: 400 });
+    return naturalAudio(directText, voiceKey);
   }
+
   const pageNumber = Number(url.searchParams.get("page"));
   const segment = Number(url.searchParams.get("segment"));
-  const voiceKey = url.searchParams.get("voice") as keyof typeof voices;
   const page = pages.find(item => item.page === pageNumber);
   const text = page?.segments[segment];
   if (!text || !voices[voiceKey]) return new Response("Not found", { status: 404 });
-
-  const cache = dataPath("audio-cache", voiceKey);
-  fs.mkdirSync(cache, { recursive: true });
-  const target = path.join(cache, `${pageNumber}-${segment}.mp3`);
-  if (!fs.existsSync(target) || fs.statSync(target).size < 1000) {
-    const python = pythonCommand();
-    const temporary = `${target}.${process.pid}.tmp.mp3`;
-    try {
-      await run(python, [path.join(process.cwd(), "scripts", "edge-tts-one.py"), text, voices[voiceKey], temporary]);
-      fs.renameSync(temporary, target);
-    } catch (error) {
-      if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-      console.error("Business TTS failed", error);
-      return new Response("Natural voice generation failed", { status: 503 });
-    }
-  }
-  return new Response(fs.readFileSync(target), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=31536000" } });
+  return naturalAudio(text, voiceKey);
 }
 
 export async function POST(request: Request) {
-  const body = await request.json() as { text?: string; voice?: keyof typeof voices };
+  const body = await request.json() as { text?: string; voice?: VoiceKey };
   const text = body.text?.trim();
-  const voiceKey = body.voice;
-  if (!text || text.length > 5000 || !voiceKey || !voices[voiceKey]) return new Response("Invalid request", { status: 400 });
-  return naturalAudio(text, voiceKey);
+  if (!text || text.length > 5000 || !body.voice || !voices[body.voice]) return new Response("Invalid request", { status: 400 });
+  return naturalAudio(text, body.voice);
 }

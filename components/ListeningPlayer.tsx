@@ -3,6 +3,7 @@
 import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Languages, Pause, Play, Repeat1 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Lesson } from "@/lib/content";
+import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 const fmt = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 
@@ -15,17 +16,17 @@ export default function ListeningPlayer({ lesson }: { lesson: Lesson }) {
   const [showKana, setShowKana] = useState(true), [showCn, setShowCn] = useState(true), [saved, setSaved] = useState<string[]>([]);
   const sentence = lesson.sentences[index];
 
-  useEffect(() => { fetch(`/api/progress?lessonId=${lesson.id}`).then(r => r.json()).then(p => { if (p?.position) { const found = lesson.sentences.findIndex(s => p.position >= s.start && p.position < s.end); if (found >= 0) setIndex(found); setTime(p.position); } }); }, [lesson]);
+  useEffect(() => { const p = getLessonProgress(lesson.id); if (p?.position) { const found = lesson.sentences.findIndex(s => p.position >= s.start && p.position < s.end); if (found >= 0) setIndex(found); setTime(p.position); } }, [lesson]);
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
   useEffect(() => { const el = audio.current; if (!el) return; el.load(); el.playbackRate = speedRef.current; if (playingRef.current) void el.play(); }, [index, voice]);
-  const persist = (position: number, completed = false) => { if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => fetch("/api/progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId: lesson.id, position, percent: completed ? 100 : Math.round(position / lesson.duration * 100), completed }) }), 350); };
+  const persist = (position: number, completed = false) => { if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => saveProgress({ lessonId: lesson.id, position, percent: completed ? 100 : Math.round(position / lesson.duration * 100), completed }), 350); };
   const jump = (next: number) => { const bounded = Math.max(0, Math.min(lesson.sentences.length - 1, next)); setIndex(bounded); setTime(lesson.sentences[bounded].start); };
   const toggle = () => { const el = audio.current; if (!el) return; if (playingRef.current) { playingRef.current = false; setPlaying(false); el.pause(); } else { playingRef.current = true; setPlaying(true); void el.play(); } };
   const setRate = (rate: number) => { speedRef.current = rate; setSpeed(rate); if (audio.current) audio.current.playbackRate = rate; };
   const toggleLoop = () => { loopRef.current = !loopRef.current; setLoop(loopRef.current); };
   const onTime = () => { const el = audio.current; if (!el || !Number.isFinite(el.duration)) return; const item = lesson.sentences[index]; const position = item.start + (item.end - item.start) * (el.currentTime / el.duration); setTime(position); persist(position); };
   const onEnded = () => { const el = audio.current; if (!el || !playingRef.current) return; if (loopRef.current) { el.currentTime = 0; void el.play(); } else if (index < lesson.sentences.length - 1) jump(index + 1); else { playingRef.current = false; setPlaying(false); setTime(lesson.duration); persist(lesson.duration, true); } };
-  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { await fetch("/api/vocabulary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId: lesson.id, ...word }) }); setSaved(x => [...new Set([...x, word.surface])]); };
+  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { saveLocalWord({ lessonId: lesson.id, ...word }); setSaved(x => [...new Set([...x, word.surface])]); };
 
   return <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
     <section className="overflow-hidden rounded-[1.75rem] border border-[#dedbd1] bg-white">
