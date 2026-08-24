@@ -1,0 +1,13 @@
+node_modules
+.repo-meta/
+.next
+data/*.db*
+data/audio-cache/
+.env*.local
+*.log
+.pnpm-store/
+work/
+vendor/
+runtime-deps/
+outputs/
+public/business-japanese/

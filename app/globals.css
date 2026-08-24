@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #26302c; background: #f7f4ed; font-family: Arial, "Hiragino Sans", "Yu Gothic UI", "Microsoft YaHei", sans-serif; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible { outline: 3px solid #d99491; outline-offset: 2px; }
+.paper-grid { background-image: linear-gradient(rgba(84,117,101,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(84,117,101,.055) 1px, transparent 1px); background-size: 28px 28px; }
+.range { accent-color: #547565; }
