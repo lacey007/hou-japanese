@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { fixedBusinessMeaning, grammarMemoForBusinessLine, kanjiReadingsForBusinessLine, manualBusinessAnnotation, meaningForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
 import businessTranslations from "@/data/business-translations-79-90.json";
 import allBusinessTranslations from "@/data/business-translations-all.json";
+import businessNameReadings from "@/data/business-name-readings.json";
 import businessAudioManifest from "@/data/business-audio-manifest.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
@@ -134,7 +135,10 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
           const lineKey = `${page.page}-${i}-${lineIndex}`;
           const heading = isSubheading(text);
           const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text];
-          const kanjiReadings = kanjiReadingsForBusinessLine(text);
+          const speakerName = text.match(/^[①-㊿❶-❿女男\s]*([^：:]{1,12})[：:]/)?.[1]?.trim() ?? "";
+          const nameReading = (businessNameReadings as Record<string, string>)[speakerName];
+          const baseReadings = kanjiReadingsForBusinessLine(text);
+          const kanjiReadings = nameReading && !baseReadings.some(item => item.surface === speakerName) ? [{ surface: speakerName, reading: nameReading, meaning: "" }, ...baseReadings] : baseReadings;
           const sentenceMeaning = pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? (allBusinessTranslations as Record<string, string>)[text] ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page);
           return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}>
             <p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>
