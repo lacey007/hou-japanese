@@ -1,8 +1,10 @@
 import languageNotes from "@/data/business-language-notes.json";
+import deepseekGrammar from "@/data/business-grammar-deepseek.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
 const analyzedLines = languageNotes as Record<string, LanguageAnalysis>;
+const deepseekGrammarByLine = deepseekGrammar as Record<string, string>;
 
 export const businessWords: BusinessWord[] = [
   { surface: "電話", reading: "でんわ", meaning: "电话" }, { surface: "伝言", reading: "でんごん", meaning: "留言、口信" },
@@ -92,10 +94,16 @@ export const grammarMemoForBusinessLine = (line: string) => {
     { test: /たいへん失礼いたしました/, title: "たいへん失礼いたしました", detail: "商务道歉的固定表达。「たいへん」加强程度；「失礼する」变为谦逊语「失礼いたす」，再用过去式「いたしました」，表示对刚才发生的失误郑重道歉。" },
     { test: /まして[……。]*$/, title: "～まして……", detail: "「ます」的て形是「まして」。句末用「～まして……」说明原因后故意不把后项说完，让对方理解歉意或后续请求，是商务电话中常见的委婉表达。" },
   ].filter(rule => rule.test.test(line));
+  const deepseekDetail = deepseekGrammarByLine[line];
+  const deepseekMemo = deepseekDetail && !/(乱码|无法解析|不適用)/.test(deepseekDetail)
+    ? [{ title: "本句语法详解", detail: deepseekDetail.replace(/^「[^」]+」(?:是|即)?/, "本句中的该表达") }]
+    : [];
   const verbs = analyzedLines[line]?.verbs ?? [];
   const verbMemo = verbs.length ? [{ title: "本句动词原形", detail: verbs.map(verb => `${verb.surface} → ${verb.base}（${verb.reading}）`).join("；") + "。箭头左侧是句中形式，右侧是词典原形。" }] : [];
-  const matches = [...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 6);
-  return matches.length ? matches : [{ title: "句型与语气", detail: "本句没有复杂的固定语法。学习时请同时注意助词搭配、句末语气以及商务场合中的礼貌程度。" }];
+  const matches = [...deepseekMemo, ...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))]
+    .filter((memo, index, items) => items.findIndex(item => item.title === memo.title) === index)
+    .slice(0, 6);
+  return matches.length ? matches : [{ title: "句型与语气", detail: "本句以普通的名词、助词或礼貌形构成，没有需要单独记忆的复杂固定句型。阅读时重点确认「は／が」提示的主题与主语、「を／に」提示的动作对象，并留意句末「です／ます」所表达的正式礼貌语气。" }];
 };
 const fixedMeanings: Record<number, Record<string, string>> = {
   77: {
