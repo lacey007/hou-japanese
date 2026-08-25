@@ -14,7 +14,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const speechPlayer = useRef<SpeechSynthesisUtterance | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [segment, setSegment] = useState(0);
-  const [voice, setVoice] = useState("auto-natural");
+  const [voice, setVoice] = useState<"female" | "male">("female");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speed, setSpeed] = useState(1);
   const [loop, setLoop] = useState(false);
@@ -65,7 +65,14 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   };
   const cleanSpokenText = (text: string) => text.replace(/^.*?[：:]\s*/, "").replace(/[①-⑳㉑-㉟㊱-㊿❶-❿]/g, "").replace(/^\s*[（(]?[0-9０-９]+[）).．、]\s*/, "").trim();
   const voiceQuality = (name: string) => /natural/i.test(name) ? "Natural" : /premium/i.test(name) ? "Premium" : /enhanced/i.test(name) ? "Enhanced" : /online/i.test(name) ? "Online" : "标准";
+  const pickVoice = (items: SpeechSynthesisVoice[], gender: "female" | "male") => {
+    const genderPattern = gender === "female" ? /nanami|haruka|ayumi|kyoko|female|女性/i : /keita|ichiro|otoya|male|男性/i;
+    const score = (item: SpeechSynthesisVoice) => (/natural|premium|enhanced|online/i.test(item.name) ? 1000 : 0) + (/microsoft|google|apple/i.test(item.name) ? 100 : 0) + (genderPattern.test(item.name) ? 500 : 0) + (item.localService ? 5 : 0);
+    return [...items].sort((a, b) => score(b) - score(a))[0];
+  };
   const pageTranslations = (businessTranslations as Record<string, Record<string, string>>)[String(page.page)] ?? {};
+  const femaleVoicePreview = pickVoice(availableVoices, "female");
+  const maleVoicePreview = pickVoice(availableVoices.filter(item => item.name !== femaleVoicePreview?.name), "male") ?? pickVoice(availableVoices, "male");
   const stopAudio = () => { window.speechSynthesis?.cancel(); speechPlayer.current = null; setPlaying(false); setLoading(false); setActiveLine(""); };
   const playNatural = async (text: string, lineKey = "", onEnded?: () => void) => {
     stopAudio(); setLoading(true); setAudioError("");
@@ -76,10 +83,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
         await new Promise<void>(resolve => { const done = () => { window.speechSynthesis.removeEventListener("voiceschanged", done); resolve(); }; window.speechSynthesis.addEventListener("voiceschanged", done); setTimeout(done, 1200); });
         japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
       }
-      const quality = (item: SpeechSynthesisVoice) => (/natural|premium|enhanced|online/i.test(item.name) ? 100 : 0) + (/microsoft|google|apple/i.test(item.name) ? 30 : 0) + (item.localService ? 5 : 0);
-      const preferred = voice === "auto-natural"
-        ? [...japaneseVoices].sort((a, b) => quality(b) - quality(a))[0]
-        : japaneseVoices.find(item => item.name === voice) ?? [...japaneseVoices].sort((a, b) => quality(b) - quality(a))[0];
+      const preferred = pickVoice(japaneseVoices, voice);
       const naturalText = text.replace(/\s*。\s*。+/g, "。").replace(/([。！？])\s*/g, "$1 ").replace(/…{2,}/g, "……");
       const utterance = new SpeechSynthesisUtterance(naturalText);
       if (preferred) utterance.voice = preferred;
@@ -92,16 +96,39 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器无法启动日语朗读，请确认系统已安装日语语音，并重新打开浏览器。");
     }
   };
+  const playDialogue = async (lines: string[], onEnded?: () => void) => {
+    stopAudio(); setLoading(true); setAudioError("");
+    try {
+      let japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
+      if (!japaneseVoices.length) {
+        await new Promise<void>(resolve => { const done = () => { window.speechSynthesis.removeEventListener("voiceschanged", done); resolve(); }; window.speechSynthesis.addEventListener("voiceschanged", done); setTimeout(done, 1200); });
+        japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
+      }
+      const femaleVoice = pickVoice(japaneseVoices, "female");
+      const maleVoice = pickVoice(japaneseVoices.filter(item => item.name !== femaleVoice?.name), "male") ?? pickVoice(japaneseVoices, "male");
+      if (!femaleVoice || !maleVoice) throw new Error("Japanese voices unavailable");
+      const speakers = new Map<string, "female" | "male">();
+      const spoken = lines.filter(line => !/^[（(].*[）)]$/.test(line) && !isSubheading(line)).map((line, index) => {
+        const speaker = line.match(/^([^：:]{1,16})[：:]/)?.[1]?.replace(/[①-⑳㉑-㊿女男]/g, "") ?? `narrator-${index}`;
+        if (!speakers.has(speaker)) speakers.set(speaker, speakers.size % 2 === 0 ? "female" : "male");
+        return { text: cleanSpokenText(line), gender: speakers.get(speaker) ?? "female", key: `${page.page}-${segment}-${index}` };
+      }).filter(item => item.text);
+      if (!spoken.length) { setLoading(false); onEnded?.(); return; }
+      setLoading(false); setPlaying(true); setActiveVoice(`女声：${femaleVoice?.name ?? "设备女声"}　男声：${maleVoice?.name ?? "设备男声"}`);
+      spoken.forEach((item, index) => {
+        const utterance = new SpeechSynthesisUtterance(item.text.replace(/([。！？])\s*/g, "$1 "));
+        utterance.voice = item.gender === "female" ? femaleVoice : maleVoice;
+        utterance.lang = "ja-JP"; utterance.rate = Math.max(.42, speed * .88); utterance.pitch = item.gender === "female" ? 1.02 : .96;
+        utterance.onstart = () => setActiveLine(item.key);
+        if (index === spoken.length - 1) utterance.onend = () => { setPlaying(false); setActiveLine(""); onEnded?.(); };
+        utterance.onerror = () => { setPlaying(false); setActiveLine(""); setAudioError("当前设备的日语语音播放失败。"); };
+        window.speechSynthesis.speak(utterance);
+      });
+    } catch { setLoading(false); setPlaying(false); setAudioError("当前浏览器无法启动日语对话朗读。"); }
+  };
   const speak = async () => {
     if (!group) return;
-    const spokenText = group.lines
-      .filter(line => !/^[（(].*[）)]$/.test(line))
-      .filter(line => !isSubheading(line))
-      .map(cleanSpokenText)
-      .filter(Boolean)
-      .join("。 ");
-    if (!spokenText) { setLoading(false); changeSegment(segment + 1); return; }
-    await playNatural(spokenText, "", () => { if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); });
+    await playDialogue(group.lines, () => { if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); });
   };
   const toggle = () => { if (playing || loading) stopAudio(); else void speak(); };
   const groupWords = group ? [...new Map(group.lines.flatMap(wordsForBusinessLine).map(word => [word.surface, word])).values()] : [];
@@ -144,8 +171,8 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / 203</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
         <div className="mt-5 flex items-center gap-3"><button onClick={toggle} disabled={!page.groups.length || loading} className="grid h-14 w-14 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20">{loading ? <LoaderCircle className="animate-spin"/> : playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="flex flex-1 flex-wrap gap-2"><button onClick={() => changeSegment(segment - 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一段</button><button onClick={() => changeSegment(segment + 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs">下一段<ChevronRight size={15}/></button><button onClick={() => setLoop(!loop)} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border bg-white"}`}><Repeat1 size={15}/>整段循环</button></div></div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="shrink-0">日语声线</span><select value={voice} onChange={e => setVoice(e.target.value)} className="max-w-[22rem] rounded-full border bg-white px-3 py-2"><option value="auto-natural">自动选择最自然声线</option>{availableVoices.map(item => <option key={`${item.name}-${item.lang}`} value={item.name}>{item.name} · {voiceQuality(item.name)}</option>)}</select></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
-        <p className="mt-2 text-xs text-[#75807a]">下拉框显示本设备实际安装的日语声线；名称含 Natural、Premium、Enhanced 时会直接标出。</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="shrink-0">单句声线</span><select value={voice} onChange={e => setVoice(e.target.value as "female" | "male")} className="max-w-[24rem] rounded-full border bg-white px-3 py-2"><option value="female">自然女声 · {femaleVoicePreview?.name ?? "设备日语女声"}</option><option value="male">自然男声 · {maleVoicePreview?.name ?? "设备日语男声"}</option></select></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
+        <p className="mt-2 text-xs text-[#75807a]">单句使用所选声线；整段对话会按说话人自动在女声和男声之间切换。当前质量：女声 {voiceQuality(femaleVoicePreview?.name ?? "")}／男声 {voiceQuality(maleVoicePreview?.name ?? "")}。</p>
         {activeVoice && <p className="mt-3 text-xs text-[#75807a]">当前使用：{activeVoice}</p>}
         {audioError && <p className="mt-4 rounded-xl bg-[#f7e4e1] px-4 py-3 text-sm text-[#955b57]">{audioError}</p>}
       </div>
