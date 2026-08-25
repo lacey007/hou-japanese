@@ -38,6 +38,7 @@ const extraKanjiReadings: BusinessWord[] = [
   { surface: "規則", reading: "きそく", meaning: "规定" }, { surface: "自宅", reading: "じたく", meaning: "住宅" },
   { surface: "番号", reading: "ばんごう", meaning: "号码" }, { surface: "市外局番", reading: "しがいきょくばん", meaning: "区号" },
   { surface: "市内局番", reading: "しないきょくばん", meaning: "市内局号" }, { surface: "発音", reading: "はつおん", meaning: "发音" },
+  { surface: "小銭", reading: "こぜに", meaning: "零钱" },
   { surface: "確認", reading: "かくにん", meaning: "确认" }, { surface: "聞き取る", reading: "ききとる", meaning: "听懂" },
   { surface: "広告代理店", reading: "こうこくだいりてん", meaning: "广告代理公司" }, { surface: "研究室", reading: "けんきゅうしつ", meaning: "研究室" },
 ];
