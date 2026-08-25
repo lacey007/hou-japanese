@@ -8,6 +8,8 @@ import edge_tts
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = json.loads((ROOT / "data" / "business-pages.json").read_text(encoding="utf-8"))
+CORRECTIONS = json.loads((ROOT / "data" / "business-pages-corrections-92-96.json").read_text(encoding="utf-8"))
+PAGES = [next((item for item in CORRECTIONS if item["page"] == page["page"]), page) for page in PAGES]
 OUT = ROOT / "public" / "audio" / "business"
 MANIFEST = ROOT / "data" / "business-audio-manifest.json"
 VOICES = {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}
