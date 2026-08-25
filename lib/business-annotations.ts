@@ -21,6 +21,60 @@ export const businessWords: BusinessWord[] = [
 ];
 
 export const wordsForBusinessLine = (line: string) => businessWords.filter(word => line.includes(word.surface));
+
+const extraKanjiReadings: BusinessWord[] = [
+  { surface: "申し上げる", reading: "もうしあげる", meaning: "说（谦逊语）" }, { surface: "申しわけ", reading: "もうしわけ", meaning: "歉意" },
+  { surface: "いただく", reading: "いただく", meaning: "接受；承蒙" }, { surface: "差し上げる", reading: "さしあげる", meaning: "给予（谦逊语）" },
+  { surface: "相手", reading: "あいて", meaning: "对方" }, { surface: "言葉", reading: "ことば", meaning: "语言；说法" },
+  { surface: "意味", reading: "いみ", meaning: "意思" }, { surface: "内容", reading: "ないよう", meaning: "内容" },
+  { surface: "通話中", reading: "つうわちゅう", meaning: "通话中" }, { surface: "突然", reading: "とつぜん", meaning: "突然" },
+  { surface: "操作", reading: "そうさ", meaning: "操作" }, { surface: "間違う", reading: "まちがう", meaning: "弄错" },
+  { surface: "簡単", reading: "かんたん", meaning: "简单" }, { surface: "質問", reading: "しつもん", meaning: "问题" },
+  { surface: "感情的", reading: "かんじょうてき", meaning: "情绪激动" }, { surface: "中断", reading: "ちゅうだん", meaning: "中断" },
+  { surface: "折り返し", reading: "おりかえし", meaning: "回电话" }, { surface: "少々", reading: "しょうしょう", meaning: "稍许" },
+  { surface: "興味", reading: "きょうみ", meaning: "兴趣" }, { surface: "教育", reading: "きょういく", meaning: "教育" },
+  { surface: "従業員", reading: "じゅうぎょういん", meaning: "员工" }, { surface: "外国人", reading: "がいこくじん", meaning: "外国人" },
+  { surface: "総務", reading: "そうむ", meaning: "总务" }, { surface: "受付", reading: "うけつけ", meaning: "前台；接待" },
+  { surface: "規則", reading: "きそく", meaning: "规定" }, { surface: "自宅", reading: "じたく", meaning: "住宅" },
+  { surface: "番号", reading: "ばんごう", meaning: "号码" }, { surface: "市外局番", reading: "しがいきょくばん", meaning: "区号" },
+  { surface: "市内局番", reading: "しないきょくばん", meaning: "市内局号" }, { surface: "発音", reading: "はつおん", meaning: "发音" },
+  { surface: "確認", reading: "かくにん", meaning: "确认" }, { surface: "聞き取る", reading: "ききとる", meaning: "听懂" },
+  { surface: "広告代理店", reading: "こうこくだいりてん", meaning: "广告代理公司" }, { surface: "研究室", reading: "けんきゅうしつ", meaning: "研究室" },
+];
+
+export const kanjiReadingsForBusinessLine = (line: string) => {
+  const candidates = [...businessWords, ...extraKanjiReadings].sort((a, b) => b.surface.length - a.surface.length);
+  const found: BusinessWord[] = [];
+  let remaining = line;
+  for (const word of candidates) {
+    if (!/[一-龯々]/.test(word.surface) || !remaining.includes(word.surface)) continue;
+    found.push(word);
+    remaining = remaining.replaceAll(word.surface, " ");
+  }
+  return found;
+};
+
+export const grammarMemoForBusinessLine = (line: string) => {
+  const rules: { test: RegExp; title: string; detail: string }[] = [
+    { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
+    { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "礼貌请求对方为自己做某事，比「～てください」更郑重。" },
+    { test: /ており(?:ます|まして)/, title: "～ております", detail: "「～ています」的谦逊、郑重表达。" },
+    { test: /かねます/, title: "～かねます", detail: "委婉表示“难以／不能……”，常见于商务应答。" },
+    { test: /ことになっている/, title: "～ことになっています", detail: "表示由规则、制度或安排所决定。" },
+    { test: /てしま(?:い|う|って)/, title: "～てしまう", detail: "表示动作完成，或带有遗憾、意外的语气。" },
+    { test: /なければなら/, title: "～なければならない", detail: "表示必须做某事。" },
+    { test: /ように(?:いたし|し|お願い|頼)/, title: "～ように", detail: "表示要求、转告或努力达到某种状态。" },
+    { test: /という(?:こと|話|名前|方)/, title: "～という", detail: "用于引用、说明名称或解释内容。" },
+    { test: /ので/, title: "～ので", detail: "表示原因、理由，语气通常比「から」柔和。" },
+    { test: /んですが|のですが|んですけど|のですけれど/, title: "～んですが", detail: "先说明情况并委婉引出请求、问题或不同意见。" },
+    { test: /でしょうか/, title: "～でしょうか", detail: "比「ですか」更委婉、郑重的询问方式。" },
+    { test: /ておき/, title: "～ておく", detail: "表示事先做某事，或让某种状态保持下去。" },
+    { test: /そうです/, title: "～そうです", detail: "根据上下文可表示传闻“听说……”或样态“看起来……”。" },
+    { test: /て(?:もら|くれ)/, title: "～てもらう／くれる", detail: "表示请别人做某事或接受别人给予的帮助。" },
+  ];
+  const matches = rules.filter(rule => rule.test.test(line)).slice(0, 3);
+  return matches.length ? matches : [{ title: "商务表达提示", detail: "注意本句的礼貌程度、说话人关系以及句末的委婉语气。" }];
+};
 const fixedMeanings: Record<number, Record<string, string>> = {
   77: {
     "③ジェフ：ロードン通信、広報部です。": "杰夫：这里是劳顿通信公关部。",

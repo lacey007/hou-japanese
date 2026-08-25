@@ -1,8 +1,8 @@
 "use client";
 
-import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Image as ImageIcon, Languages, LoaderCircle, Pause, Play, Repeat1 } from "lucide-react";
+import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Image as ImageIcon, Languages, LoaderCircle, NotebookPen, Pause, Play, Repeat1 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { fixedBusinessMeaning, manualBusinessAnnotation, meaningForBusinessLine, readingForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
+import { fixedBusinessMeaning, grammarMemoForBusinessLine, kanjiReadingsForBusinessLine, manualBusinessAnnotation, meaningForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
 import businessTranslations from "@/data/business-translations-79-90.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
@@ -14,7 +14,8 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const speechPlayer = useRef<SpeechSynthesisUtterance | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [segment, setSegment] = useState(0);
-  const [voice, setVoice] = useState<"nanami" | "keita">("nanami");
+  const [voice, setVoice] = useState("auto-natural");
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speed, setSpeed] = useState(1);
   const [loop, setLoop] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -24,6 +25,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const [showImage, setShowImage] = useState(true);
   const [showKana, setShowKana] = useState(true), [showCn, setShowCn] = useState(true), [saved, setSaved] = useState<string[]>([]);
   const [activeLine, setActiveLine] = useState("");
+  const [openMemos, setOpenMemos] = useState<string[]>([]);
   const annotations: Record<string, { reading: string; meaning: string }> = {};
   const page = pages[pageIndex];
   const group = page.groups[segment];
@@ -36,6 +38,13 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     setPlaying(false); setAudioError(""); setActiveVoice(""); setActiveLine("");
   }, [pageIndex, segment, voice, speed]);
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    const loadVoices = () => setAvailableVoices(window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja")));
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+  }, []);
 
   const save = (nextPage: number) => saveProgress({ lessonId: "business-japanese", position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 });
   const changePage = (next: number) => { const bounded = Math.max(0, Math.min(pages.length - 1, next)); setPageIndex(bounded); setSegment(0); void save(bounded); window.scrollTo({ top: 0, behavior: "smooth" }); };
@@ -45,6 +54,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     setSegment(next);
   };
   const cleanSpokenText = (text: string) => text.replace(/^.*?[：:]\s*/, "").replace(/[①-⑳㉑-㉟㊱-㊿❶-❿]/g, "").replace(/^\s*[（(]?[0-9０-９]+[）).．、]\s*/, "").trim();
+  const voiceQuality = (name: string) => /natural/i.test(name) ? "Natural" : /premium/i.test(name) ? "Premium" : /enhanced/i.test(name) ? "Enhanced" : /online/i.test(name) ? "Online" : "标准";
   const pageTranslations = (businessTranslations as Record<string, Record<string, string>>)[String(page.page)] ?? {};
   const stopAudio = () => { window.speechSynthesis?.cancel(); speechPlayer.current = null; setPlaying(false); setLoading(false); setActiveLine(""); };
   const playNatural = async (text: string, lineKey = "", onEnded?: () => void) => {
@@ -57,12 +67,13 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
         japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
       }
       const quality = (item: SpeechSynthesisVoice) => (/natural|premium|enhanced|online/i.test(item.name) ? 100 : 0) + (/microsoft|google|apple/i.test(item.name) ? 30 : 0) + (item.localService ? 5 : 0);
-      const genderMatch = (item: SpeechSynthesisVoice) => voice === "keita" ? /keita|ichiro|otoya|male|男性/i.test(item.name) : /nanami|haruka|ayumi|kyoko|female|女性/i.test(item.name);
-      const preferred = [...japaneseVoices].sort((a, b) => (Number(genderMatch(b)) - Number(genderMatch(a))) * 1000 + quality(b) - quality(a))[0];
+      const preferred = voice === "auto-natural"
+        ? [...japaneseVoices].sort((a, b) => quality(b) - quality(a))[0]
+        : japaneseVoices.find(item => item.name === voice) ?? [...japaneseVoices].sort((a, b) => quality(b) - quality(a))[0];
       const naturalText = text.replace(/\s*。\s*。+/g, "。").replace(/([。！？])\s*/g, "$1 ").replace(/…{2,}/g, "……");
       const utterance = new SpeechSynthesisUtterance(naturalText);
       if (preferred) utterance.voice = preferred;
-      utterance.lang = "ja-JP"; utterance.rate = Math.max(.45, speed * .92); utterance.pitch = voice === "keita" ? .96 : 1.02; utterance.volume = 1; speechPlayer.current = utterance;
+      utterance.lang = "ja-JP"; utterance.rate = Math.max(.42, speed * .88); utterance.pitch = 1; utterance.volume = 1; speechPlayer.current = utterance;
       utterance.onstart = () => { setLoading(false); setPlaying(true); setActiveLine(lineKey); setActiveVoice(preferred?.name ?? "设备日语语音"); };
       utterance.onend = () => { setPlaying(false); setActiveLine(""); onEnded?.(); };
       utterance.onerror = () => { setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器没有可用的日语语音，请在系统中安装日语语音包。"); };
@@ -97,13 +108,25 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / 203</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
         <div className="mt-5 flex items-center gap-3"><button onClick={toggle} disabled={!page.groups.length || loading} className="grid h-14 w-14 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20">{loading ? <LoaderCircle className="animate-spin"/> : playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="flex flex-1 flex-wrap gap-2"><button onClick={() => changeSegment(segment - 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一段</button><button onClick={() => changeSegment(segment + 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs">下一段<ChevronRight size={15}/></button><button onClick={() => setLoop(!loop)} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border bg-white"}`}><Repeat1 size={15}/>整段循环</button></div></div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex items-center gap-2"><span>自然语音</span><select value={voice} onChange={e => setVoice(e.target.value as "nanami" | "keita")} className="rounded-full border bg-white px-3 py-2"><option value="nanami">设备日语女声优先</option><option value="keita">设备日语男声优先</option></select></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="shrink-0">日语声线</span><select value={voice} onChange={e => setVoice(e.target.value)} className="max-w-[22rem] rounded-full border bg-white px-3 py-2"><option value="auto-natural">自动选择最自然声线</option>{availableVoices.map(item => <option key={`${item.name}-${item.lang}`} value={item.name}>{item.name} · {voiceQuality(item.name)}</option>)}</select></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
+        <p className="mt-2 text-xs text-[#75807a]">下拉框显示本设备实际安装的日语声线；名称含 Natural、Premium、Enhanced 时会直接标出。</p>
         {activeVoice && <p className="mt-3 text-xs text-[#75807a]">当前使用：{activeVoice}</p>}
         {audioError && <p className="mt-4 rounded-xl bg-[#f7e4e1] px-4 py-3 text-sm text-[#955b57]">{audioError}</p>}
       </div>
       <div className="p-5 md:p-7"><div className="mb-5 flex items-center justify-between"><button onClick={() => changePage(pageIndex - 1)} disabled={pageIndex === 0} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">← 上一页</button><select value={pageIndex} onChange={e => changePage(Number(e.target.value))} className="rounded-full border bg-white px-4 py-2 text-sm">{pages.map((item, i) => <option key={item.page} value={i}>第 {item.page} 页</option>)}</select><button onClick={() => changePage(pageIndex + 1)} disabled={pageIndex === pages.length - 1} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">下一页 →</button></div>
         <div className="mb-5 flex flex-wrap items-center gap-2 text-xs"><Languages size={16} className="mr-1 text-matcha"/><span className="rounded-full bg-matcha px-3 py-1.5 text-white">日文</span><button onClick={() => setShowKana(!showKana)} className={`rounded-full px-3 py-1.5 ${showKana ? "bg-[#e1ebe6] text-matcha" : "bg-[#eee] text-[#888]"}`}>假名</button><button onClick={() => setShowCn(!showCn)} className={`rounded-full px-3 py-1.5 ${showCn ? "bg-[#f4e5e3] text-[#985f5c]" : "bg-[#eee] text-[#888]"}`}>中文</button></div>
-        {page.groups.length ? <div className="space-y-5">{page.groups.map((item, i) => <div key={i} onClick={() => setSegment(i)} className={`block w-full cursor-pointer rounded-2xl border p-5 text-left transition ${i === segment ? "border-matcha bg-[#eef4f1] text-[#26463a]" : "border-[#e4e1d8] hover:bg-[#f7f6f2]"}`}>{item.title && <p className="mb-3 text-lg font-bold leading-8">{item.title}</p>}<div className="space-y-3">{item.lines.map((text, lineIndex) => { const lineKey = `${page.page}-${i}-${lineIndex}`; const heading = isSubheading(text); const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text]; return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}><p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>{showKana && !heading && <p className="mt-0.5 text-sm leading-6 text-[#70857b]">{annotation?.reading ?? readingForBusinessLine(text, page.page)}</p>}{showCn && !heading && <p className="text-sm leading-6 text-[#7d817f]">{pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page)}</p>}</div>; })}</div></div>)}</div> : <div className="rounded-2xl bg-cream p-10 text-center text-[#777f7b]">本页没有识别到日文内容，请查看左侧原页。</div>}
+        {page.groups.length ? <div className="space-y-5">{page.groups.map((item, i) => <div key={i} onClick={() => setSegment(i)} className={`block w-full cursor-pointer rounded-2xl border p-5 text-left transition ${i === segment ? "border-matcha bg-[#eef4f1] text-[#26463a]" : "border-[#e4e1d8] hover:bg-[#f7f6f2]"}`}>{item.title && <p className="mb-3 text-lg font-bold leading-8">{item.title}</p>}<div className="space-y-3">{item.lines.map((text, lineIndex) => {
+          const lineKey = `${page.page}-${i}-${lineIndex}`;
+          const heading = isSubheading(text);
+          const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text];
+          const kanjiReadings = kanjiReadingsForBusinessLine(text);
+          return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}>
+            <p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>
+            {showKana && !heading && kanjiReadings.length > 0 && <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#587467]">{kanjiReadings.map(word => <span key={word.surface} className="rounded-md bg-white/80 px-2 py-1">{word.surface}<span className="mx-1 text-[#9aa6a0]">·</span>{word.reading}</span>)}</div>}
+            {showCn && !heading && <p className="mt-1 text-sm leading-6 text-[#7d817f]">{pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page)}</p>}
+            {!heading && <div className="mt-2"><button onClick={event => { event.stopPropagation(); setOpenMemos(items => items.includes(lineKey) ? items.filter(key => key !== lineKey) : [...items, lineKey]); }} className="inline-flex items-center gap-1 rounded-full border border-[#d8d5cc] bg-white/80 px-2.5 py-1 text-xs text-[#65736d]"><NotebookPen size={13}/>Memo</button>{openMemos.includes(lineKey) && <div className="mt-2 space-y-2 rounded-xl border border-[#e2ded4] bg-[#fffdf8] p-3">{grammarMemoForBusinessLine(text).map(memo => <div key={memo.title}><p className="text-sm font-bold text-[#345a4b]">{memo.title}</p><p className="mt-0.5 text-xs leading-5 text-[#707873]">{memo.detail}</p></div>)}</div>}</div>}
+          </div>;
+        })}</div></div>)}</div> : <div className="rounded-2xl bg-cream p-10 text-center text-[#777f7b]">本页没有识别到日文内容，请查看左侧原页。</div>}
         {groupWords.length > 0 && <div className="mt-6 rounded-2xl border border-[#dedbd1] bg-cream p-5"><p className="text-xs font-bold tracking-[.15em] text-sakura">WORDS IN THIS SECTION</p><h2 className="mt-2 text-xl font-bold">本段商务词汇</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{groupWords.map(word => <div key={word.surface} className="rounded-xl bg-white p-4"><div className="flex items-start justify-between"><div><p className="font-bold">{word.surface}</p><p className="mt-1 text-xs text-matcha">{word.reading}</p></div><button onClick={event => { event.stopPropagation(); void saveWord(word); }} className={`grid h-8 w-8 place-items-center rounded-full ${saved.includes(word.surface) ? "bg-matcha text-white" : "bg-cream text-matcha"}`}>{saved.includes(word.surface) ? <Check size={15}/> : <BookmarkPlus size={15}/>}</button></div><p className="mt-3 border-t border-[#dedbd1] pt-3 text-sm text-[#737a76]">{word.meaning}</p></div>)}</div></div>}
       </div>
     </section>
