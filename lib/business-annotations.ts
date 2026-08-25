@@ -137,5 +137,5 @@ export const readingForBusinessLine = (line: string, page?: number) => {
 export const meaningForBusinessLine = (line: string, page?: number) => {
   if (page === 74 && page74Annotations[line]) return page74Annotations[line].meaning;
   const words = wordsForBusinessLine(line);
-  return words.length ? `本句要点：${words.map(word => `${word.surface}（${word.meaning}）`).join("、")}` : "本句的中文释义正在校订。";
+  return words.length ? `本句要点：${words.map(word => `${word.surface}（${word.meaning}）`).join("、")}` : "请展开“语法解释”结合句型学习本句；完整中文译文会随原文校对逐页补充。";
 };

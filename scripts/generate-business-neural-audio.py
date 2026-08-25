@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import re
 from pathlib import Path
 
@@ -56,7 +57,8 @@ def build_jobs():
 
 async def generate_one(semaphore, job):
     key, text, voice, target = job
-    if target.exists() and target.stat().st_size > 1000:
+    force_pages = {item.strip() for item in os.environ.get("FORCE_PAGES", "").split(",") if item.strip()}
+    if target.exists() and target.stat().st_size > 1000 and key.split("-", 1)[0] not in force_pages:
         return "cached"
     target.parent.mkdir(parents=True, exist_ok=True)
     async with semaphore:
