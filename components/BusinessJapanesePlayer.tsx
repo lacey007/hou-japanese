@@ -4,6 +4,7 @@ import { BookmarkPlus, Check, ChevronLeft, ChevronRight, CloudUpload, Gauge, Ima
 import { useEffect, useRef, useState } from "react";
 import { fixedBusinessMeaning, grammarMemoForBusinessLine, kanjiReadingsForBusinessLine, manualBusinessAnnotation, meaningForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
 import businessTranslations from "@/data/business-translations-79-90.json";
+import allBusinessTranslations from "@/data/business-translations-all.json";
 import businessAudioManifest from "@/data/business-audio-manifest.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
@@ -134,7 +135,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
           const heading = isSubheading(text);
           const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text];
           const kanjiReadings = kanjiReadingsForBusinessLine(text);
-          const sentenceMeaning = pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page);
+          const sentenceMeaning = pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? (allBusinessTranslations as Record<string, string>)[text] ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page);
           return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}>
             <p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>
             {showKana && !heading && kanjiReadings.length > 0 && <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#587467]">{kanjiReadings.map(word => <span key={word.surface} className="rounded-md bg-white/80 px-2 py-1">{word.surface}<span className="mx-1 text-[#9aa6a0]">·</span>{word.reading}</span>)}</div>}
