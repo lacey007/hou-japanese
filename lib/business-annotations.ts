@@ -68,5 +68,5 @@ export const readingForBusinessLine = (line: string, page?: number) => {
 export const meaningForBusinessLine = (line: string, page?: number) => {
   if (page === 74 && page74Annotations[line]) return page74Annotations[line].meaning;
   const words = wordsForBusinessLine(line);
-  return words.length ? words.map(word => `${word.surface}：${word.meaning}`).join("　") : "本句暂无词义注释";
+  return words.length ? `本句要点：${words.map(word => `${word.surface}（${word.meaning}）`).join("、")}` : "本句的中文释义正在校订。";
 };

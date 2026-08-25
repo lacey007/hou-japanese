@@ -2,7 +2,8 @@
 
 import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Image as ImageIcon, Languages, LoaderCircle, Pause, Play, Repeat1 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { fixedBusinessMeaning, manualBusinessAnnotation, readingForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
+import { fixedBusinessMeaning, manualBusinessAnnotation, meaningForBusinessLine, readingForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
+import businessTranslations from "@/data/business-translations-79-90.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 type Page = { page: number; image: string; segments: string[]; groups: { title: string; lines: string[] }[] };
@@ -44,24 +45,30 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     setSegment(next);
   };
   const cleanSpokenText = (text: string) => text.replace(/^.*?[：:]\s*/, "").replace(/[①-⑳㉑-㉟㊱-㊿❶-❿]/g, "").replace(/^\s*[（(]?[0-9０-９]+[）).．、]\s*/, "").trim();
+  const pageTranslations = (businessTranslations as Record<string, Record<string, string>>)[String(page.page)] ?? {};
   const stopAudio = () => { window.speechSynthesis?.cancel(); speechPlayer.current = null; setPlaying(false); setLoading(false); setActiveLine(""); };
   const playNatural = async (text: string, lineKey = "", onEnded?: () => void) => {
     stopAudio(); setLoading(true); setAudioError("");
     try {
       if (!("speechSynthesis" in window)) throw new Error("speech synthesis unavailable");
-      const utterance = new SpeechSynthesisUtterance(text);
-      const japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
-      const preferred = voice === "keita"
-        ? japaneseVoices.find(item => /keita|ichiro|male/i.test(item.name)) ?? japaneseVoices[1] ?? japaneseVoices[0]
-        : japaneseVoices.find(item => /nanami|haruka|ayumi|female/i.test(item.name)) ?? japaneseVoices[0];
+      let japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
+      if (!japaneseVoices.length) {
+        await new Promise<void>(resolve => { const done = () => { window.speechSynthesis.removeEventListener("voiceschanged", done); resolve(); }; window.speechSynthesis.addEventListener("voiceschanged", done); setTimeout(done, 1200); });
+        japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
+      }
+      const quality = (item: SpeechSynthesisVoice) => (/natural|premium|enhanced|online/i.test(item.name) ? 100 : 0) + (/microsoft|google|apple/i.test(item.name) ? 30 : 0) + (item.localService ? 5 : 0);
+      const genderMatch = (item: SpeechSynthesisVoice) => voice === "keita" ? /keita|ichiro|otoya|male|男性/i.test(item.name) : /nanami|haruka|ayumi|kyoko|female|女性/i.test(item.name);
+      const preferred = [...japaneseVoices].sort((a, b) => (Number(genderMatch(b)) - Number(genderMatch(a))) * 1000 + quality(b) - quality(a))[0];
+      const naturalText = text.replace(/\s*。\s*。+/g, "。").replace(/([。！？])\s*/g, "$1 ").replace(/…{2,}/g, "……");
+      const utterance = new SpeechSynthesisUtterance(naturalText);
       if (preferred) utterance.voice = preferred;
-      utterance.lang = "ja-JP"; utterance.rate = speed; speechPlayer.current = utterance;
+      utterance.lang = "ja-JP"; utterance.rate = Math.max(.45, speed * .92); utterance.pitch = voice === "keita" ? .96 : 1.02; utterance.volume = 1; speechPlayer.current = utterance;
       utterance.onstart = () => { setLoading(false); setPlaying(true); setActiveLine(lineKey); setActiveVoice(preferred?.name ?? "设备日语语音"); };
       utterance.onend = () => { setPlaying(false); setActiveLine(""); onEnded?.(); };
       utterance.onerror = () => { setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器没有可用的日语语音，请在系统中安装日语语音包。"); };
       window.speechSynthesis.speak(utterance);
     } catch {
-      setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("自然语音生成失败，请确认电脑已联网后重试。");
+      setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器无法启动日语朗读，请确认系统已安装日语语音，并重新打开浏览器。");
     }
   };
   const speak = async () => {
@@ -96,7 +103,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       </div>
       <div className="p-5 md:p-7"><div className="mb-5 flex items-center justify-between"><button onClick={() => changePage(pageIndex - 1)} disabled={pageIndex === 0} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">← 上一页</button><select value={pageIndex} onChange={e => changePage(Number(e.target.value))} className="rounded-full border bg-white px-4 py-2 text-sm">{pages.map((item, i) => <option key={item.page} value={i}>第 {item.page} 页</option>)}</select><button onClick={() => changePage(pageIndex + 1)} disabled={pageIndex === pages.length - 1} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">下一页 →</button></div>
         <div className="mb-5 flex flex-wrap items-center gap-2 text-xs"><Languages size={16} className="mr-1 text-matcha"/><span className="rounded-full bg-matcha px-3 py-1.5 text-white">日文</span><button onClick={() => setShowKana(!showKana)} className={`rounded-full px-3 py-1.5 ${showKana ? "bg-[#e1ebe6] text-matcha" : "bg-[#eee] text-[#888]"}`}>假名</button><button onClick={() => setShowCn(!showCn)} className={`rounded-full px-3 py-1.5 ${showCn ? "bg-[#f4e5e3] text-[#985f5c]" : "bg-[#eee] text-[#888]"}`}>中文</button></div>
-        {page.groups.length ? <div className="space-y-5">{page.groups.map((item, i) => <div key={i} onClick={() => setSegment(i)} className={`block w-full cursor-pointer rounded-2xl border p-5 text-left transition ${i === segment ? "border-matcha bg-[#eef4f1] text-[#26463a]" : "border-[#e4e1d8] hover:bg-[#f7f6f2]"}`}>{item.title && <p className="mb-3 text-lg font-bold leading-8">{item.title}</p>}<div className="space-y-3">{item.lines.map((text, lineIndex) => { const lineKey = `${page.page}-${i}-${lineIndex}`; const heading = isSubheading(text); const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text]; return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}><p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>{showKana && !heading && <p className="mt-0.5 text-sm leading-6 text-[#70857b]">{annotation?.reading ?? readingForBusinessLine(text, page.page)}</p>}{showCn && !heading && <p className="text-sm leading-6 text-[#7d817f]">{fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? "整句翻译生成中……"}</p>}</div>; })}</div></div>)}</div> : <div className="rounded-2xl bg-cream p-10 text-center text-[#777f7b]">本页没有识别到日文内容，请查看左侧原页。</div>}
+        {page.groups.length ? <div className="space-y-5">{page.groups.map((item, i) => <div key={i} onClick={() => setSegment(i)} className={`block w-full cursor-pointer rounded-2xl border p-5 text-left transition ${i === segment ? "border-matcha bg-[#eef4f1] text-[#26463a]" : "border-[#e4e1d8] hover:bg-[#f7f6f2]"}`}>{item.title && <p className="mb-3 text-lg font-bold leading-8">{item.title}</p>}<div className="space-y-3">{item.lines.map((text, lineIndex) => { const lineKey = `${page.page}-${i}-${lineIndex}`; const heading = isSubheading(text); const annotation = manualBusinessAnnotation(text, page.page) ?? annotations[text]; return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}><p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>{showKana && !heading && <p className="mt-0.5 text-sm leading-6 text-[#70857b]">{annotation?.reading ?? readingForBusinessLine(text, page.page)}</p>}{showCn && !heading && <p className="text-sm leading-6 text-[#7d817f]">{pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page)}</p>}</div>; })}</div></div>)}</div> : <div className="rounded-2xl bg-cream p-10 text-center text-[#777f7b]">本页没有识别到日文内容，请查看左侧原页。</div>}
         {groupWords.length > 0 && <div className="mt-6 rounded-2xl border border-[#dedbd1] bg-cream p-5"><p className="text-xs font-bold tracking-[.15em] text-sakura">WORDS IN THIS SECTION</p><h2 className="mt-2 text-xl font-bold">本段商务词汇</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{groupWords.map(word => <div key={word.surface} className="rounded-xl bg-white p-4"><div className="flex items-start justify-between"><div><p className="font-bold">{word.surface}</p><p className="mt-1 text-xs text-matcha">{word.reading}</p></div><button onClick={event => { event.stopPropagation(); void saveWord(word); }} className={`grid h-8 w-8 place-items-center rounded-full ${saved.includes(word.surface) ? "bg-matcha text-white" : "bg-cream text-matcha"}`}>{saved.includes(word.surface) ? <Check size={15}/> : <BookmarkPlus size={15}/>}</button></div><p className="mt-3 border-t border-[#dedbd1] pt-3 text-sm text-[#737a76]">{word.meaning}</p></div>)}</div></div>}
       </div>
     </section>
