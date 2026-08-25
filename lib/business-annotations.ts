@@ -1,4 +1,5 @@
 import languageNotes from "@/data/business-language-notes.json";
+import businessTranslations from "@/data/business-translations-79-90.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
@@ -27,6 +28,13 @@ export const businessWords: BusinessWord[] = [
 export const wordsForBusinessLine = (line: string) => businessWords.filter(word => line.includes(word.surface));
 
 const extraKanjiReadings: BusinessWord[] = [
+  { surface: "依頼", reading: "いらい", meaning: "请求、委托" }, { surface: "研修会", reading: "けんしゅうかい", meaning: "研修会" },
+  { surface: "申し込み", reading: "もうしこみ", meaning: "申请、报名" }, { surface: "今度", reading: "こんど", meaning: "这次；下次" },
+  { surface: "早め", reading: "はやめ", meaning: "尽早" }, { surface: "仕事", reading: "しごと", meaning: "工作" },
+  { surface: "無理", reading: "むり", meaning: "勉强；难以做到" }, { surface: "話", reading: "はなし", meaning: "话；事情" },
+  { surface: "打って", reading: "うって", meaning: "打字；录入" }, { surface: "一度", reading: "いちど", meaning: "一次" },
+  { surface: "頼める", reading: "たのめる", meaning: "能够拜托" }, { surface: "聞いて", reading: "きいて", meaning: "听" },
+  { surface: "人", reading: "ひと", meaning: "人" },
   { surface: "申し上げる", reading: "もうしあげる", meaning: "说（谦逊语）" }, { surface: "申しわけ", reading: "もうしわけ", meaning: "歉意" },
   { surface: "いただく", reading: "いただく", meaning: "接受；承蒙" }, { surface: "差し上げる", reading: "さしあげる", meaning: "给予（谦逊语）" },
   { surface: "相手", reading: "あいて", meaning: "对方" }, { surface: "言葉", reading: "ことば", meaning: "语言；说法" },
@@ -61,7 +69,9 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
   return found;
 };
 
-export const grammarMemoForBusinessLine = (line: string) => {
+export const grammarMemoForBusinessLine = (line: string, sentenceMeaning?: string) => {
+  const translatedPages = businessTranslations as Record<string, Record<string, string>>;
+  const resolvedMeaning = sentenceMeaning ?? Object.values(translatedPages).find(page => page[line])?.[line] ?? meaningForBusinessLine(line);
   const rules: { test: RegExp; title: string; detail: string }[] = [
     { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
     { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "接续：动词て形＋いただけますか。表示“能否请您……”，把对方的动作视为自己承蒙的恩惠，因此比「～てください」更郑重。否定疑问「～ていただけませんか」语气更委婉。" },
@@ -87,7 +97,8 @@ export const grammarMemoForBusinessLine = (line: string) => {
   ].filter(rule => rule.test.test(line));
   const verbs = analyzedLines[line]?.verbs ?? [];
   const verbMemo = verbs.length ? [{ title: "本句动词原形", detail: verbs.map(verb => `${verb.surface} → ${verb.base}（${verb.reading}）`).join("；") + "。箭头左侧是句中形式，右侧是词典原形。" }] : [];
-  const matches = [...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 6);
+  const translationMemo = [{ title: "整句中文", detail: resolvedMeaning }];
+  const matches = [...translationMemo, ...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 7);
   return matches.length ? matches : [{ title: "句型与语气", detail: "本句没有复杂的固定语法。学习时请同时注意助词搭配、句末语气以及商务场合中的礼貌程度。" }];
 };
 const fixedMeanings: Record<number, Record<string, string>> = {
