@@ -4,18 +4,20 @@ import { BookmarkPlus, Check, ChevronLeft, ChevronRight, CloudUpload, Gauge, Ima
 import { useEffect, useRef, useState } from "react";
 import { fixedBusinessMeaning, grammarMemoForBusinessLine, kanjiReadingsForBusinessLine, manualBusinessAnnotation, meaningForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
 import businessTranslations from "@/data/business-translations-79-90.json";
+import businessAudioManifest from "@/data/business-audio-manifest.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 type Page = { page: number; image: string; segments: string[]; groups: { title: string; lines: string[] }[] };
+type AudioEntry = { src: string; voice: "female" | "male"; speaker: string };
+const neuralAudio = businessAudioManifest as Record<string, AudioEntry>;
+const audioBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const isSubheading = (text: string) => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/.test(text) && !/^[0-9０-９]+分/.test(text);
 
 export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
-  const speechPlayer = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioPlayer = useRef<HTMLAudioElement | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [segment, setSegment] = useState(0);
-  const [voice, setVoice] = useState<"female" | "male">("female");
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speed, setSpeed] = useState(1);
   const [loop, setLoop] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -39,21 +41,14 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));
   }, [pages.length]);
   useEffect(() => {
-    window.speechSynthesis?.cancel();
+    audioPlayer.current?.pause(); audioPlayer.current = null;
     setPlaying(false); setAudioError(""); setActiveVoice(""); setActiveLine("");
-  }, [pageIndex, segment, voice, speed]);
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  }, [pageIndex, segment, speed]);
+  useEffect(() => () => { audioPlayer.current?.pause(); }, []);
   useEffect(() => {
     try { setPersonalNotes(JSON.parse(localStorage.getItem("hibiki-business-notes") ?? "{}")); } catch { setPersonalNotes({}); }
     setGithubToken(sessionStorage.getItem("hibiki-github-token") ?? "");
     fetch(`https://raw.githubusercontent.com/lacey007/hou-japanese/main/data/shared-notes.json?t=${Date.now()}`, { cache: "no-store" }).then(response => response.ok ? response.json() : {}).then(setSharedNotes).catch(() => setSharedNotes({}));
-  }, []);
-  useEffect(() => {
-    if (!("speechSynthesis" in window)) return;
-    const loadVoices = () => setAvailableVoices(window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja")));
-    loadVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
   }, []);
 
   const save = (nextPage: number) => saveProgress({ lessonId: "business-japanese", position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 });
@@ -64,71 +59,29 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     setSegment(next);
   };
   const cleanSpokenText = (text: string) => text.replace(/^.*?[：:]\s*/, "").replace(/[①-⑳㉑-㉟㊱-㊿❶-❿]/g, "").replace(/^\s*[（(]?[0-9０-９]+[）).．、]\s*/, "").trim();
-  const pickVoice = (items: SpeechSynthesisVoice[], gender: "female" | "male") => {
-    const targetPattern = gender === "female" ? /nanami/i : /keita/i;
-    const fallbackGenderPattern = gender === "female" ? /haruka|ayumi|kyoko|female|女性/i : /ichiro|otoya|male|男性/i;
-    const score = (item: SpeechSynthesisVoice) => (targetPattern.test(item.name) ? 10000 : 0) + (/natural|premium|enhanced|online/i.test(item.name) ? 1000 : 0) + (/microsoft/i.test(item.name) ? 300 : 0) + (fallbackGenderPattern.test(item.name) ? 100 : 0) + (item.localService ? 5 : 0);
-    return [...items].sort((a, b) => score(b) - score(a))[0];
-  };
   const pageTranslations = (businessTranslations as Record<string, Record<string, string>>)[String(page.page)] ?? {};
-  const femaleVoicePreview = pickVoice(availableVoices, "female");
-  const maleVoicePreview = pickVoice(availableVoices.filter(item => item.name !== femaleVoicePreview?.name), "male") ?? pickVoice(availableVoices, "male");
-  const stopAudio = () => { window.speechSynthesis?.cancel(); speechPlayer.current = null; setPlaying(false); setLoading(false); setActiveLine(""); };
-  const playNatural = async (text: string, lineKey = "", onEnded?: () => void) => {
-    stopAudio(); setLoading(true); setAudioError("");
-    try {
-      if (!("speechSynthesis" in window)) throw new Error("speech synthesis unavailable");
-      let japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
-      if (!japaneseVoices.length) {
-        await new Promise<void>(resolve => { const done = () => { window.speechSynthesis.removeEventListener("voiceschanged", done); resolve(); }; window.speechSynthesis.addEventListener("voiceschanged", done); setTimeout(done, 1200); });
-        japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
-      }
-      const preferred = pickVoice(japaneseVoices, voice);
-      const naturalText = text.replace(/\s*。\s*。+/g, "。").replace(/([。！？])\s*/g, "$1 ").replace(/…{2,}/g, "……");
-      const utterance = new SpeechSynthesisUtterance(naturalText);
-      if (preferred) utterance.voice = preferred;
-      utterance.lang = "ja-JP"; utterance.rate = Math.max(.42, speed * .88); utterance.pitch = 1; utterance.volume = 1; speechPlayer.current = utterance;
-      utterance.onstart = () => { setLoading(false); setPlaying(true); setActiveLine(lineKey); setActiveVoice(preferred?.name ?? "设备日语语音"); };
-      utterance.onend = () => { setPlaying(false); setActiveLine(""); onEnded?.(); };
-      utterance.onerror = () => { setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器没有可用的日语语音，请在系统中安装日语语音包。"); };
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("当前浏览器无法启动日语朗读，请确认系统已安装日语语音，并重新打开浏览器。");
-    }
-  };
-  const playDialogue = async (lines: string[], onEnded?: () => void) => {
-    stopAudio(); setLoading(true); setAudioError("");
-    try {
-      let japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
-      if (!japaneseVoices.length) {
-        await new Promise<void>(resolve => { const done = () => { window.speechSynthesis.removeEventListener("voiceschanged", done); resolve(); }; window.speechSynthesis.addEventListener("voiceschanged", done); setTimeout(done, 1200); });
-        japaneseVoices = window.speechSynthesis.getVoices().filter(item => item.lang.toLowerCase().startsWith("ja"));
-      }
-      const femaleVoice = pickVoice(japaneseVoices, "female");
-      const maleVoice = pickVoice(japaneseVoices.filter(item => item.name !== femaleVoice?.name), "male") ?? pickVoice(japaneseVoices, "male");
-      if (!femaleVoice || !maleVoice) throw new Error("Japanese voices unavailable");
-      const speakers = new Map<string, "female" | "male">();
-      const spoken = lines.filter(line => !/^[（(].*[）)]$/.test(line) && !isSubheading(line)).map((line, index) => {
-        const speaker = line.match(/^([^：:]{1,16})[：:]/)?.[1]?.replace(/[①-⑳㉑-㊿女男]/g, "") ?? `narrator-${index}`;
-        if (!speakers.has(speaker)) speakers.set(speaker, speakers.size % 2 === 0 ? "female" : "male");
-        return { text: cleanSpokenText(line), gender: speakers.get(speaker) ?? "female", key: `${page.page}-${segment}-${index}` };
-      }).filter(item => item.text);
-      if (!spoken.length) { setLoading(false); onEnded?.(); return; }
-      setLoading(false); setPlaying(true); setActiveVoice(`女声：${femaleVoice?.name ?? "设备女声"}　男声：${maleVoice?.name ?? "设备男声"}`);
-      spoken.forEach((item, index) => {
-        const utterance = new SpeechSynthesisUtterance(item.text.replace(/([。！？])\s*/g, "$1 "));
-        utterance.voice = item.gender === "female" ? femaleVoice : maleVoice;
-        utterance.lang = "ja-JP"; utterance.rate = Math.max(.42, speed * .88); utterance.pitch = item.gender === "female" ? 1.02 : .96;
-        utterance.onstart = () => setActiveLine(item.key);
-        if (index === spoken.length - 1) utterance.onend = () => { setPlaying(false); setActiveLine(""); onEnded?.(); };
-        utterance.onerror = () => { setPlaying(false); setActiveLine(""); setAudioError("当前设备的日语语音播放失败。"); };
-        window.speechSynthesis.speak(utterance);
-      });
-    } catch { setLoading(false); setPlaying(false); setAudioError("当前浏览器无法启动日语对话朗读。"); }
+  const stopAudio = () => { audioPlayer.current?.pause(); audioPlayer.current = null; setPlaying(false); setLoading(false); setActiveLine(""); };
+  const playEntries = (entries: { key: string; audio: AudioEntry }[], onEnded?: () => void) => {
+    stopAudio(); setAudioError("");
+    if (!entries.length) { setAudioError("该句暂无神经语音。"); return; }
+    let cursor = 0;
+    const playNext = () => {
+      const item = entries[cursor];
+      if (!item) { setPlaying(false); setActiveLine(""); onEnded?.(); return; }
+      setLoading(true);
+      const player = new Audio(`${audioBasePath}${item.audio.src}`);
+      audioPlayer.current = player; player.playbackRate = speed; player.preload = "auto";
+      player.onplaying = () => { setLoading(false); setPlaying(true); setActiveLine(item.key); setActiveVoice(item.audio.voice === "female" ? "Nanami Neural · 自然女声" : "Keita Neural · 自然男声"); };
+      player.onended = () => { cursor += 1; playNext(); };
+      player.onerror = () => { setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("神经语音加载失败，请检查网络后重试。"); };
+      player.play().catch(() => player.onerror?.(new Event("error")));
+    };
+    playNext();
   };
   const speak = async () => {
     if (!group) return;
-    await playDialogue(group.lines, () => { if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); });
+    const entries = group.lines.map((_, index) => { const key = `${page.page}-${segment}-${index}`; return { key, audio: neuralAudio[key] }; }).filter((item): item is { key: string; audio: AudioEntry } => Boolean(item.audio));
+    playEntries(entries, () => { if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); });
   };
   const toggle = () => { if (playing || loading) stopAudio(); else void speak(); };
   const groupWords = group ? [...new Map(group.lines.flatMap(wordsForBusinessLine).map(word => [word.surface, word])).values()] : [];
@@ -159,9 +112,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       setSharedNotes(next); setSyncStatus("已提交。其他浏览器重新打开网页后即可看到。GitHub Pages也会自动重新发布。");
     } catch (error) { setSyncStatus(error instanceof Error ? error.message : "笔记提交失败。"); }
   };
-  const speakLine = async (text: string, key: string) => {
-    await playNatural(cleanSpokenText(text), key);
-  };
+  const speakLine = async (_text: string, key: string) => { const audio = neuralAudio[key]; playEntries(audio ? [{ key, audio }] : []); };
 
   return <div className={`grid gap-6 ${showImage ? "xl:grid-cols-[minmax(360px,.9fr)_minmax(440px,1.1fr)]" : "grid-cols-1"}`}>
     <aside className={`${showImage ? "block" : "hidden"} h-fit overflow-hidden rounded-[1.75rem] border border-[#dedbd1] bg-[#e9e6de] xl:sticky xl:top-24`}>
@@ -171,8 +122,8 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / 203</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
         <div className="mt-5 flex items-center gap-3"><button onClick={toggle} disabled={!page.groups.length || loading} className="grid h-14 w-14 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20">{loading ? <LoaderCircle className="animate-spin"/> : playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="flex flex-1 flex-wrap gap-2"><button onClick={() => changeSegment(segment - 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一段</button><button onClick={() => changeSegment(segment + 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs">下一段<ChevronRight size={15}/></button><button onClick={() => setLoop(!loop)} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border bg-white"}`}><Repeat1 size={15}/>整段循环</button></div></div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="shrink-0">单句声线</span><select value={voice} onChange={e => setVoice(e.target.value as "female" | "male")} className="max-w-[24rem] rounded-full border bg-white px-3 py-2"><option value="female">Nanami · 自然女声</option><option value="male">Keita · 自然男声</option></select></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
-        <p className="mt-2 text-xs text-[#75807a]">女声固定优先 Nanami，男声固定优先 Keita；整段对话会按说话人在两种声线之间自动切换。当前实际声线：{femaleVoicePreview?.name ?? "未检测到 Nanami"}／{maleVoicePreview?.name ?? "未检测到 Keita"}。</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="rounded-full border bg-white px-3 py-2">Nanami · Neural 女声</span><span className="rounded-full border bg-white px-3 py-2">Keita · Neural 男声</span></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
+        <p className="mt-2 text-xs text-[#75807a]">已改用预生成的 Microsoft Neural 自然语音；整段对话会根据说话人自动切换 Nanami 女声与 Keita 男声。</p>
         {activeVoice && <p className="mt-3 text-xs text-[#75807a]">当前使用：{activeVoice}</p>}
         {audioError && <p className="mt-4 rounded-xl bg-[#f7e4e1] px-4 py-3 text-sm text-[#955b57]">{audioError}</p>}
       </div>

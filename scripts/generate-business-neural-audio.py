@@ -1,0 +1,97 @@
+import asyncio
+import json
+import re
+from pathlib import Path
+
+import edge_tts
+
+ROOT = Path(__file__).resolve().parents[1]
+PAGES = json.loads((ROOT / "data" / "business-pages.json").read_text(encoding="utf-8"))
+OUT = ROOT / "public" / "audio" / "business"
+MANIFEST = ROOT / "data" / "business-audio-manifest.json"
+VOICES = {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}
+SUBHEADING = re.compile(r"^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])")
+CIRCLED = re.compile(r"[①-⑳㉑-㉟㊱-㊿❶-❿]")
+
+
+def clean_text(text: str) -> str:
+    text = re.sub(r"^.*?[：:]\s*", "", text)
+    text = CIRCLED.sub("", text)
+    text = re.sub(r"^\s*[（(]?[0-9０-９]+[）).．、]\s*", "", text)
+    text = re.sub(r"[^\u0020-\u007Eぁ-んァ-ヶ一-龯々。、！？…「」『』（）ー]", "", text)
+    return text.strip()
+
+
+def build_jobs():
+    jobs = []
+    manifest = {}
+    ignored_ocr_keys = {"32-0-7", "58-2-13", "178-0-4", "179-0-12", "186-0-18", "189-0-17", "197-0-5"}
+    for page in PAGES:
+        page_no = page["page"]
+        for group_index, group in enumerate(page.get("groups", [])):
+            speakers = {}
+            for line_index, line in enumerate(group.get("lines", [])):
+                key = f"{page_no}-{group_index}-{line_index}"
+                if key in ignored_ocr_keys:
+                    continue
+                if not line or SUBHEADING.match(line) or re.match(r"^[（(].*[）)]$", line):
+                    continue
+                spoken = clean_text(line)
+                if not spoken or "\ufffd" in spoken or not re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken):
+                    continue
+                match = re.match(r"^([^：:]{1,16})[：:]", line)
+                speaker = CIRCLED.sub("", match.group(1)).replace("女", "").replace("男", "") if match else "旁白"
+                if speaker == "旁白":
+                    gender = "female"
+                else:
+                    if speaker not in speakers:
+                        speakers[speaker] = "female" if len(speakers) % 2 == 0 else "male"
+                    gender = speakers[speaker]
+                relative = f"audio/business/page-{page_no:03d}/group-{group_index:02d}-line-{line_index:03d}.mp3"
+                target = ROOT / "public" / relative
+                manifest[key] = {"src": f"/{relative}", "voice": gender, "speaker": speaker}
+                jobs.append((key, spoken, VOICES[gender], target))
+    return jobs, manifest
+
+
+async def generate_one(semaphore, job):
+    key, text, voice, target = job
+    if target.exists() and target.stat().st_size > 1000:
+        return "cached"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    async with semaphore:
+        for attempt in range(4):
+            try:
+                await edge_tts.Communicate(text, voice, rate="-5%").save(str(target))
+                if target.stat().st_size > 1000:
+                    return "generated"
+            except Exception as error:
+                if target.exists():
+                    target.unlink(missing_ok=True)
+                if attempt == 3:
+                    raise RuntimeError(f"{key} | {voice} | {text} | {error}") from error
+                await asyncio.sleep(1.5 * (attempt + 1))
+    return "failed"
+
+
+async def main():
+    jobs, manifest = build_jobs()
+    MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    semaphore = asyncio.Semaphore(10)
+    counts = {"generated": 0, "cached": 0, "failed": 0}
+    pending = [asyncio.create_task(generate_one(semaphore, job)) for job in jobs]
+    for index, task in enumerate(asyncio.as_completed(pending), 1):
+        try:
+            result = await task
+        except Exception as error:
+            result = "failed"
+            print(f"ERROR: {error}", flush=True)
+        counts[result] += 1
+        if index % 50 == 0 or index == len(pending):
+            print(f"PROGRESS {index}/{len(pending)} generated={counts['generated']} cached={counts['cached']} failed={counts['failed']}", flush=True)
+    if counts["failed"]:
+        raise SystemExit(f"Audio generation finished with {counts['failed']} failures")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
