@@ -8,6 +8,7 @@ import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/li
 const fmt = (seconds: number) => `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 
 export default function ListeningPlayer({ lesson }: { lesson: Lesson }) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
   const audio = useRef<HTMLAudioElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false), loopRef = useRef(false), speedRef = useRef(1);
@@ -30,7 +31,7 @@ export default function ListeningPlayer({ lesson }: { lesson: Lesson }) {
 
   return <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
     <section className="overflow-hidden rounded-[1.75rem] border border-[#dedbd1] bg-white">
-      <audio ref={audio} className="hidden" src={`/audio/neural/${voice}/${lesson.id}-${index}.mp3`} onTimeUpdate={onTime} onEnded={onEnded}/>
+      <audio ref={audio} className="hidden" src={`${basePath}/audio/neural/${voice}/${lesson.id}-${index}.mp3`} onTimeUpdate={onTime} onEnded={onEnded}/>
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
         <div className="flex items-center gap-4"><button onClick={toggle} className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20" aria-label={playing ? "暂停" : "播放日语朗读"}>{playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="min-w-0 flex-1"><input aria-label="播放进度" className="range w-full" type="range" min="0" max={lesson.duration} step="0.05" value={time} onChange={e => { const value = Number(e.target.value); const found = lesson.sentences.findIndex(s => value >= s.start && value < s.end); if (found >= 0) jump(found); setTime(value); }}/><div className="mt-1 flex justify-between text-xs text-[#7d8480]"><span>{fmt(time)}</span><span>{fmt(lesson.duration)}</span></div></div></div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><button onClick={() => jump(index - 1)} className="flex items-center gap-1 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一句</button><button onClick={() => jump(index + 1)} className="flex items-center gap-1 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs">下一句<ChevronRight size={15}/></button><button onClick={toggleLoop} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border border-[#d1cec6] bg-white"}`}><Repeat1 size={15}/>单句循环</button></div><div className="flex items-center gap-1"><Gauge size={15} className="mr-1 text-[#777f7b]"/>{[.5, .75, 1, 1.25, 1.5].map(rate => <button key={rate} onClick={() => setRate(rate)} className={`rounded-lg px-2 py-1 text-xs ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>

@@ -8,10 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "export": "next build"
   },
   "dependencies": {
-    "edge-tts.js": "^2.0.4",
     "lucide-react": "^0.468.0",
     "next": "15.5.7",
     "react": "19.1.1",

@@ -1,6 +1,11 @@
 node_modules
 .repo-meta/
 .next
+out/
+.netlify*/
+.netlify*.zip
+.netlify-token.tmp
+render.yaml
 data/*.db*
 data/audio-cache/
 .env*.local
