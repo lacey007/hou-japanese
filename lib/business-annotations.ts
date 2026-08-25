@@ -71,6 +71,18 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
 };
 
 export const grammarMemoForBusinessLine = (line: string) => {
+  if (/[A-Za-z]{3}/.test(line) && !/[ぁ-んァ-ン一-龯]/.test(line)) {
+    const englishRules = [
+      { test: /has been designed/, title: "Present perfect passive", detail: "“has been designed” 是现在完成时的被动语态：has/have + been + 过去分词。表示设计这一动作已经完成，而且结果与现在仍有关联。" },
+      { test: /who have mastered/, title: "Relative clause", detail: "“who have mastered ...” 是由 who 引导的定语从句，修饰前面的 people。who 在从句中作主语，have mastered 使用现在完成时，强调已经掌握基础日语。" },
+      { test: /in order to/, title: "Purpose: in order to", detail: "“in order to + 动词原形”表示目的，即“为了……”。语气比单独使用 to 更明确，否定形式是 in order not to。" },
+      { test: /should (?:not )?be used/, title: "Modal passive", detail: "“should + be + 过去分词”是情态动词的被动结构，表示某事应该或不应该被怎样处理。should 后始终使用动词原形 be。" },
+      { test: /can(?:'t|not)? be/, title: "Modal verb + passive", detail: "can/cannot 后接动词原形；“can be + 过去分词”构成被动语态，表示某事能够被完成或被使用。" },
+      { test: /When /, title: "Time clause with when", detail: "when 引导时间状语从句，说明主句动作发生的时间或场景。用于目录标题时常省略主句，把它理解为“当……时所使用的表达”。" },
+      { test: /Making|Introducing|Expressing|Giving|Asking|Turning|Inviting|Accepting|Reporting|Explaining|Confirming/, title: "Gerund phrase", detail: "这里使用动名词（动词 + -ing）作为标题中心语，把一个动作当作主题或事项，例如 Making a request 表示“提出请求”这一行为。" },
+    ].filter(rule => rule.test.test(line));
+    return englishRules.length ? englishRules : [{ title: "English structure", detail: "本行是英文标题或说明。目录标题通常采用名词短语或动名词短语，省略完整句子的主语和谓语，使表达简洁。页码前的短语表示该章节所讲的交际功能。" }];
+  }
   const rules: { test: RegExp; title: string; detail: string }[] = [
     { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
     { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "接续：动词て形＋いただけますか。表示“能否请您……”，把对方的动作视为自己承蒙的恩惠，因此比「～てください」更郑重。否定疑问「～ていただけませんか」语气更委婉。" },

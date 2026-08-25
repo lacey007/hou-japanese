@@ -14,7 +14,10 @@ type AudioEntry = { src: string; voice: "female" | "male"; speaker: string };
 const neuralAudio = businessAudioManifest as Record<string, AudioEntry>;
 const audioBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
-const isSubheading = (text: string) => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/.test(text) && !/^[0-9０-９]+分/.test(text);
+const isSubheading = (text: string) => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/.test(text)
+  && !/^[0-9０-９]+分/.test(text)
+  && text.length < 60
+  && !/[.!?。！？]$/.test(text);
 
 export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const audioPlayer = useRef<HTMLAudioElement | null>(null);
