@@ -1,5 +1,4 @@
 import languageNotes from "@/data/business-language-notes.json";
-import businessTranslations from "@/data/business-translations-79-90.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
@@ -69,9 +68,7 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
   return found;
 };
 
-export const grammarMemoForBusinessLine = (line: string, sentenceMeaning?: string) => {
-  const translatedPages = businessTranslations as Record<string, Record<string, string>>;
-  const resolvedMeaning = sentenceMeaning ?? Object.values(translatedPages).find(page => page[line])?.[line] ?? meaningForBusinessLine(line);
+export const grammarMemoForBusinessLine = (line: string) => {
   const rules: { test: RegExp; title: string; detail: string }[] = [
     { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
     { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "接续：动词て形＋いただけますか。表示“能否请您……”，把对方的动作视为自己承蒙的恩惠，因此比「～てください」更郑重。否定疑问「～ていただけませんか」语气更委婉。" },
@@ -97,8 +94,7 @@ export const grammarMemoForBusinessLine = (line: string, sentenceMeaning?: strin
   ].filter(rule => rule.test.test(line));
   const verbs = analyzedLines[line]?.verbs ?? [];
   const verbMemo = verbs.length ? [{ title: "本句动词原形", detail: verbs.map(verb => `${verb.surface} → ${verb.base}（${verb.reading}）`).join("；") + "。箭头左侧是句中形式，右侧是词典原形。" }] : [];
-  const translationMemo = [{ title: "整句中文", detail: resolvedMeaning }];
-  const matches = [...translationMemo, ...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 7);
+  const matches = [...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 6);
   return matches.length ? matches : [{ title: "句型与语气", detail: "本句没有复杂的固定语法。学习时请同时注意助词搭配、句末语气以及商务场合中的礼貌程度。" }];
 };
 const fixedMeanings: Record<number, Record<string, string>> = {
