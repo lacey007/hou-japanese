@@ -1,4 +1,8 @@
+import languageNotes from "@/data/business-language-notes.json";
+
 export type BusinessWord = { surface: string; reading: string; meaning: string };
+type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
+const analyzedLines = languageNotes as Record<string, LanguageAnalysis>;
 
 export const businessWords: BusinessWord[] = [
   { surface: "電話", reading: "でんわ", meaning: "电话" }, { surface: "伝言", reading: "でんごん", meaning: "留言、口信" },
@@ -44,6 +48,8 @@ const extraKanjiReadings: BusinessWord[] = [
 ];
 
 export const kanjiReadingsForBusinessLine = (line: string) => {
+  const analyzed = analyzedLines[line]?.readings;
+  if (analyzed?.length) return analyzed.map(item => ({ ...item, meaning: "" }));
   const candidates = [...businessWords, ...extraKanjiReadings].sort((a, b) => b.surface.length - a.surface.length);
   const found: BusinessWord[] = [];
   let remaining = line;
@@ -58,23 +64,31 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
 export const grammarMemoForBusinessLine = (line: string) => {
   const rules: { test: RegExp; title: string; detail: string }[] = [
     { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
-    { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "礼貌请求对方为自己做某事，比「～てください」更郑重。" },
+    { test: /ていただけ(?:ます|ません)/, title: "～ていただけますか", detail: "接续：动词て形＋いただけますか。表示“能否请您……”，把对方的动作视为自己承蒙的恩惠，因此比「～てください」更郑重。否定疑问「～ていただけませんか」语气更委婉。" },
     { test: /ており(?:ます|まして)/, title: "～ております", detail: "「～ています」的谦逊、郑重表达。" },
-    { test: /かねます/, title: "～かねます", detail: "委婉表示“难以／不能……”，常见于商务应答。" },
+    { test: /かねます/, title: "～かねます", detail: "接续：动词ます形去掉「ます」＋かねます。用于委婉拒绝或表示客观上难以做到，相当于“恐怕无法……”。商务场合通常比直接说「できません」柔和。" },
     { test: /ことになっている/, title: "～ことになっています", detail: "表示由规则、制度或安排所决定。" },
-    { test: /てしま(?:い|う|って)/, title: "～てしまう", detail: "表示动作完成，或带有遗憾、意外的语气。" },
+    { test: /てしま(?:い|う|って)/, title: "～てしまう", detail: "接续：动词て形＋しまう。既可表示动作彻底完成，也可表达遗憾、失误或不希望发生的结果。本句在电话故障语境中带有歉意。礼貌过去式常为「～てしまいました」。" },
     { test: /なければなら/, title: "～なければならない", detail: "表示必须做某事。" },
     { test: /ように(?:いたし|し|お願い|頼)/, title: "～ように", detail: "表示要求、转告或努力达到某种状态。" },
     { test: /という(?:こと|話|名前|方)/, title: "～という", detail: "用于引用、说明名称或解释内容。" },
-    { test: /ので/, title: "～ので", detail: "表示原因、理由，语气通常比「から」柔和。" },
-    { test: /んですが|のですが|んですけど|のですけれど/, title: "～んですが", detail: "先说明情况并委婉引出请求、问题或不同意见。" },
+    { test: /ので/, title: "～ので", detail: "接续：普通形＋ので；名词、ナ形容词后用「なので」。表示原因或理由，比「から」更客观柔和，适合说明情况、提出请求或婉拒。" },
+    { test: /んですが|のですが|んですけど|のですけれど/, title: "～んですが", detail: "「のです＋が」的口语形式。先补充背景或理由，再委婉引出请求、询问或不同意见。句末省略后项时，会把判断留给对方，语气更柔和。" },
     { test: /でしょうか/, title: "～でしょうか", detail: "比「ですか」更委婉、郑重的询问方式。" },
     { test: /ておき/, title: "～ておく", detail: "表示事先做某事，或让某种状态保持下去。" },
     { test: /そうです/, title: "～そうです", detail: "根据上下文可表示传闻“听说……”或样态“看起来……”。" },
     { test: /て(?:もら|くれ)/, title: "～てもらう／くれる", detail: "表示请别人做某事或接受别人给予的帮助。" },
   ];
-  const matches = rules.filter(rule => rule.test.test(line)).slice(0, 3);
-  return matches.length ? matches : [{ title: "商务表达提示", detail: "注意本句的礼貌程度、说话人关系以及句末的委婉语气。" }];
+  const special = [
+    { test: /もう一度/, title: "もう一度", detail: "表示“再一次”。「もう」表示追加或再次，「一度」表示一次。用于请求重复操作时，比单说「もう一回」更适合正式场合。" },
+    { test: /おつなぎいたします/, title: "お＋动词ます形＋いたします", detail: "「おつなぎいたします」是「つなぐ」的谦逊表达。变化：つなぐ→つなぎ（ます形词干）→おつなぎいたします。说话人压低自己的动作，礼貌表示“我为您转接”。" },
+    { test: /たいへん失礼いたしました/, title: "たいへん失礼いたしました", detail: "商务道歉的固定表达。「たいへん」加强程度；「失礼する」变为谦逊语「失礼いたす」，再用过去式「いたしました」，表示对刚才发生的失误郑重道歉。" },
+    { test: /まして[……。]*$/, title: "～まして……", detail: "「ます」的て形是「まして」。句末用「～まして……」说明原因后故意不把后项说完，让对方理解歉意或后续请求，是商务电话中常见的委婉表达。" },
+  ].filter(rule => rule.test.test(line));
+  const verbs = analyzedLines[line]?.verbs ?? [];
+  const verbMemo = verbs.length ? [{ title: "本句动词原形", detail: verbs.map(verb => `${verb.surface} → ${verb.base}（${verb.reading}）`).join("；") + "。箭头左侧是句中形式，右侧是词典原形。" }] : [];
+  const matches = [...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))].slice(0, 6);
+  return matches.length ? matches : [{ title: "句型与语气", detail: "本句没有复杂的固定语法。学习时请同时注意助词搭配、句末语气以及商务场合中的礼貌程度。" }];
 };
 const fixedMeanings: Record<number, Record<string, string>> = {
   77: {

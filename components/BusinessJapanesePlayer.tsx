@@ -1,6 +1,6 @@
 "use client";
 
-import { BookmarkPlus, Check, ChevronLeft, ChevronRight, Gauge, Image as ImageIcon, Languages, LoaderCircle, NotebookPen, Pause, Play, Repeat1, Save, StickyNote } from "lucide-react";
+import { BookmarkPlus, Check, ChevronLeft, ChevronRight, CloudUpload, Gauge, Image as ImageIcon, Languages, LoaderCircle, NotebookPen, Pause, Play, Repeat1, Save, StickyNote } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fixedBusinessMeaning, grammarMemoForBusinessLine, kanjiReadingsForBusinessLine, manualBusinessAnnotation, meaningForBusinessLine, wordsForBusinessLine } from "@/lib/business-annotations";
 import businessTranslations from "@/data/business-translations-79-90.json";
@@ -28,6 +28,9 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const [openMemos, setOpenMemos] = useState<string[]>([]);
   const [openNotes, setOpenNotes] = useState<string[]>([]);
   const [personalNotes, setPersonalNotes] = useState<Record<string, string>>({});
+  const [sharedNotes, setSharedNotes] = useState<Record<string, string>>({});
+  const [githubToken, setGithubToken] = useState("");
+  const [syncStatus, setSyncStatus] = useState("");
   const annotations: Record<string, { reading: string; meaning: string }> = {};
   const page = pages[pageIndex];
   const group = page.groups[segment];
@@ -42,6 +45,8 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
   useEffect(() => {
     try { setPersonalNotes(JSON.parse(localStorage.getItem("hibiki-business-notes") ?? "{}")); } catch { setPersonalNotes({}); }
+    setGithubToken(sessionStorage.getItem("hibiki-github-token") ?? "");
+    fetch(`https://raw.githubusercontent.com/lacey007/hou-japanese/main/data/shared-notes.json?t=${Date.now()}`, { cache: "no-store" }).then(response => response.ok ? response.json() : {}).then(setSharedNotes).catch(() => setSharedNotes({}));
   }, []);
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
@@ -106,6 +111,27 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
     setPersonalNotes(next);
     localStorage.setItem("hibiki-business-notes", JSON.stringify(next));
   };
+  const publishPersonalNote = async (key: string) => {
+    const value = personalNotes[key]?.trim();
+    if (!value) { setSyncStatus("请先填写并保存笔记。"); return; }
+    if (!githubToken.trim()) { setSyncStatus("请先输入有 Contents 读写权限的 GitHub Token。"); return; }
+    setSyncStatus("正在提交到 GitHub……");
+    try {
+      sessionStorage.setItem("hibiki-github-token", githubToken.trim());
+      const api = "https://api.github.com/repos/lacey007/hou-japanese/contents/data/shared-notes.json";
+      const headers = { Authorization: `Bearer ${githubToken.trim()}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+      const currentResponse = await fetch(`${api}?t=${Date.now()}`, { headers, cache: "no-store" });
+      if (!currentResponse.ok) throw new Error("无法读取远程笔记，请检查 Token 权限。");
+      const currentFile = await currentResponse.json();
+      const decoded = new TextDecoder().decode(Uint8Array.from(atob(currentFile.content.replace(/\n/g, "")), char => char.charCodeAt(0)));
+      const next = { ...JSON.parse(decoded), [key]: value };
+      const bytes = new TextEncoder().encode(JSON.stringify(next, null, 2) + "\n");
+      let binary = ""; bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+      const updateResponse = await fetch(api, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ message: `添加学习笔记：${key}`, content: btoa(binary), sha: currentFile.sha, branch: "main" }) });
+      if (!updateResponse.ok) throw new Error("提交失败，请确认 Token 对仓库具有 Contents 读写权限。");
+      setSharedNotes(next); setSyncStatus("已提交。其他浏览器重新打开网页后即可看到。GitHub Pages也会自动重新发布。");
+    } catch (error) { setSyncStatus(error instanceof Error ? error.message : "笔记提交失败。"); }
+  };
   const speakLine = async (text: string, key: string) => {
     await playNatural(cleanSpokenText(text), key);
   };
@@ -134,7 +160,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
             <p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>
             {showKana && !heading && kanjiReadings.length > 0 && <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#587467]">{kanjiReadings.map(word => <span key={word.surface} className="rounded-md bg-white/80 px-2 py-1">{word.surface}<span className="mx-1 text-[#9aa6a0]">·</span>{word.reading}</span>)}</div>}
             {showCn && !heading && <p className="mt-1 text-sm leading-6 text-[#7d817f]">{pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page)}</p>}
-            {!heading && <div className="mt-2"><div className="flex flex-wrap gap-2"><button onClick={event => { event.stopPropagation(); setOpenMemos(items => items.includes(lineKey) ? items.filter(key => key !== lineKey) : [...items, lineKey]); }} className="inline-flex items-center gap-1 rounded-full border border-[#d8d5cc] bg-white/80 px-2.5 py-1 text-xs text-[#65736d]"><NotebookPen size={13}/>语法解释</button><button onClick={event => { event.stopPropagation(); setOpenNotes(items => items.includes(lineKey) ? items.filter(key => key !== lineKey) : [...items, lineKey]); }} className="inline-flex items-center gap-1 rounded-full border border-[#d8d5cc] bg-white/80 px-2.5 py-1 text-xs text-[#65736d]"><StickyNote size={13}/>{personalNotes[lineKey] ? "查看笔记" : "添加笔记"}</button></div>{openMemos.includes(lineKey) && <div className="mt-2 space-y-2 rounded-xl border border-[#e2ded4] bg-[#fffdf8] p-3">{grammarMemoForBusinessLine(text).map(memo => <div key={memo.title}><p className="text-sm font-bold text-[#345a4b]">{memo.title}</p><p className="mt-0.5 text-xs leading-5 text-[#707873]">{memo.detail}</p></div>)}</div>}{openNotes.includes(lineKey) && <div onClick={event => event.stopPropagation()} className="mt-2 rounded-xl border border-[#e2ded4] bg-white p-3"><textarea value={personalNotes[lineKey] ?? ""} onChange={event => setPersonalNotes(notes => ({ ...notes, [lineKey]: event.target.value }))} placeholder="写下你对这句话的理解、用法或例句……" className="min-h-24 w-full resize-y rounded-lg border border-[#dedbd1] bg-[#fffdf8] p-3 text-sm outline-none focus:border-matcha"/><button onClick={() => savePersonalNote(lineKey, personalNotes[lineKey] ?? "")} className="mt-2 inline-flex items-center gap-1 rounded-full bg-matcha px-3 py-1.5 text-xs font-bold text-white"><Save size={13}/>保存笔记</button><p className="mt-2 text-xs text-[#8a918d]">笔记保存在当前浏览器中，不需要登录。</p></div>}</div>}
+            {!heading && <div className="mt-2"><div className="flex flex-wrap gap-2"><button onClick={event => { event.stopPropagation(); setOpenMemos(items => items.includes(lineKey) ? items.filter(key => key !== lineKey) : [...items, lineKey]); }} className="inline-flex items-center gap-1 rounded-full border border-[#d8d5cc] bg-white/80 px-2.5 py-1 text-xs text-[#65736d]"><NotebookPen size={13}/>语法解释</button><button onClick={event => { event.stopPropagation(); setOpenNotes(items => items.includes(lineKey) ? items.filter(key => key !== lineKey) : [...items, lineKey]); }} className="inline-flex items-center gap-1 rounded-full border border-[#d8d5cc] bg-white/80 px-2.5 py-1 text-xs text-[#65736d]"><StickyNote size={13}/>{personalNotes[lineKey] || sharedNotes[lineKey] ? "查看笔记" : "添加笔记"}</button></div>{openMemos.includes(lineKey) && <div className="mt-2 space-y-3 rounded-xl border border-[#e2ded4] bg-[#fffdf8] p-4">{grammarMemoForBusinessLine(text).map(memo => <div key={memo.title} className="border-b border-[#ece8df] pb-3 last:border-0 last:pb-0"><p className="text-sm font-bold text-[#345a4b]">{memo.title}</p><p className="mt-1 text-sm leading-6 text-[#626b66]">{memo.detail}</p></div>)}</div>}{openNotes.includes(lineKey) && <div onClick={event => event.stopPropagation()} className="mt-2 rounded-xl border border-[#e2ded4] bg-white p-3"><textarea value={personalNotes[lineKey] ?? sharedNotes[lineKey] ?? ""} onChange={event => setPersonalNotes(notes => ({ ...notes, [lineKey]: event.target.value }))} placeholder="写下你对这句话的理解、用法或例句……" className="min-h-24 w-full resize-y rounded-lg border border-[#dedbd1] bg-[#fffdf8] p-3 text-sm outline-none focus:border-matcha"/><div className="mt-2 flex flex-wrap gap-2"><button onClick={() => savePersonalNote(lineKey, personalNotes[lineKey] ?? sharedNotes[lineKey] ?? "")} className="inline-flex items-center gap-1 rounded-full bg-matcha px-3 py-1.5 text-xs font-bold text-white"><Save size={13}/>保存到本机</button><button onClick={() => void publishPersonalNote(lineKey)} className="inline-flex items-center gap-1 rounded-full bg-[#313a36] px-3 py-1.5 text-xs font-bold text-white"><CloudUpload size={13}/>提交并同步</button></div><input type="password" value={githubToken} onChange={event => setGithubToken(event.target.value)} placeholder="GitHub Token（仅保存在本次浏览器会话）" className="mt-3 w-full rounded-lg border border-[#dedbd1] px-3 py-2 text-xs outline-none focus:border-matcha"/><p className="mt-2 text-xs leading-5 text-[#8a918d]">提交后笔记会公开保存到本仓库，其他浏览器重新打开网页即可读取。Token不会写入网页或仓库。</p>{syncStatus && <p className="mt-2 rounded-lg bg-[#f1f3ef] px-3 py-2 text-xs text-[#59655f]">{syncStatus}</p>}</div>}</div>}
           </div>;
         })}</div></div>)}</div> : <div className="rounded-2xl bg-cream p-10 text-center text-[#777f7b]">本页没有识别到日文内容，请查看左侧原页。</div>}
         {groupWords.length > 0 && <div className="mt-6 rounded-2xl border border-[#dedbd1] bg-cream p-5"><p className="text-xs font-bold tracking-[.15em] text-sakura">WORDS IN THIS SECTION</p><h2 className="mt-2 text-xl font-bold">本段商务词汇</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{groupWords.map(word => <div key={word.surface} className="rounded-xl bg-white p-4"><div className="flex items-start justify-between"><div><p className="font-bold">{word.surface}</p><p className="mt-1 text-xs text-matcha">{word.reading}</p></div><button onClick={event => { event.stopPropagation(); void saveWord(word); }} className={`grid h-8 w-8 place-items-center rounded-full ${saved.includes(word.surface) ? "bg-matcha text-white" : "bg-cream text-matcha"}`}>{saved.includes(word.surface) ? <Check size={15}/> : <BookmarkPlus size={15}/>}</button></div><p className="mt-3 border-t border-[#dedbd1] pt-3 text-sm text-[#737a76]">{word.meaning}</p></div>)}</div></div>}
