@@ -74,7 +74,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       const item = entries[cursor];
       if (!item) { setPlaying(false); setActiveLine(""); onEnded?.(); return; }
       setLoading(true);
-      const player = new Audio(`${audioBasePath}${item.audio.src}?v=20260826-2`);
+      const player = new Audio(`${audioBasePath}${item.audio.src}?v=20260826-3`);
       audioPlayer.current = player; player.playbackRate = speed; player.preload = "auto";
       player.onplaying = () => { setLoading(false); setPlaying(true); setActiveLine(item.key); setActiveVoice(item.audio.voice === "female" ? "Nanami Neural · 自然女声" : "Keita Neural · 自然男声"); };
       player.onended = () => { cursor += 1; playNext(); };
