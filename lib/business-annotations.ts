@@ -1,10 +1,14 @@
 import languageNotes from "@/data/business-language-notes.json";
 import deepseekGrammar from "@/data/business-grammar-deepseek.json";
+import deepseekGrammar102 from "@/data/business-grammar-deepseek-102.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
 const analyzedLines = languageNotes as Record<string, LanguageAnalysis>;
-const deepseekGrammarByLine = deepseekGrammar as Record<string, string>;
+const deepseekGrammarByLine = {
+  ...(deepseekGrammar as Record<string, string>),
+  ...(deepseekGrammar102 as Record<string, string>),
+};
 const contextMeanings: Record<string, string> = {
   "(章ことの特長)": "（各章的特点）",
   "（田中と塚田、名刺を交換しながら）": "（田中和塚田一边交换名片一边交谈）",
@@ -164,6 +168,7 @@ export const grammarMemoForBusinessLine = (line: string) => {
   const deepseekMemo = deepseekDetail && !/(乱码|无法解析|不適用)/.test(deepseekDetail)
     ? [{ title: "本句语法详解", detail: deepseekDetail.replace(/^「[^」]+」(?:是|即)?/, "本句中的该表达") }]
     : [];
+  if (deepseekMemo.length) return deepseekMemo;
   const verbs = analyzedLines[line]?.verbs ?? [];
   const verbMemo = verbs.length ? [{ title: "本句动词原形", detail: verbs.map(verb => `${verb.surface} → ${verb.base}（${verb.reading}）`).join("；") + "。箭头左侧是句中形式，右侧是词典原形。" }] : [];
   const matches = [...deepseekMemo, ...verbMemo, ...special, ...rules.filter(rule => rule.test.test(line))]
