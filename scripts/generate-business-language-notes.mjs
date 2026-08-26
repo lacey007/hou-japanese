@@ -6,7 +6,14 @@ const require = createRequire(import.meta.url);
 const packageRoot = process.env.KUROMOJI_PACKAGE;
 if (!packageRoot) throw new Error("KUROMOJI_PACKAGE is required");
 const kuromoji = require(path.join(packageRoot, "src", "kuromoji.js"));
-const pages = JSON.parse(fs.readFileSync("data/business-pages.json", "utf8"));
+const sourcePages = JSON.parse(fs.readFileSync("data/business-pages.json", "utf8"));
+const correctionFiles = [
+  "data/business-pages-corrections-8-18.json",
+  "data/business-pages-corrections-92-96.json",
+  "data/business-pages-corrections-97-110.json",
+];
+const corrections = correctionFiles.flatMap(file => JSON.parse(fs.readFileSync(file, "utf8")));
+const pages = sourcePages.map(page => corrections.find(item => item.page === page.page) ?? page);
 const kataToHira = value => (value || "").replace(/[ァ-ヶ]/g, char => String.fromCharCode(char.charCodeAt(0) - 0x60));
 const hasKanji = value => /[一-龯々〆ヵヶ]/.test(value);
 

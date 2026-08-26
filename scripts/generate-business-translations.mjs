@@ -1,15 +1,22 @@
 import fs from "node:fs";
 
 const pages = JSON.parse(fs.readFileSync("data/business-pages.json", "utf8"));
-const corrections = JSON.parse(fs.readFileSync("data/business-pages-corrections-92-96.json", "utf8"));
+const correctionFiles = [
+  "data/business-pages-corrections-8-18.json",
+  "data/business-pages-corrections-92-96.json",
+  "data/business-pages-corrections-97-110.json",
+];
+const corrections = correctionFiles.flatMap(file => JSON.parse(fs.readFileSync(file, "utf8")));
 const curated = JSON.parse(fs.readFileSync("data/business-translations-79-90.json", "utf8"));
 const outputPath = "data/business-translations-all.json";
 const output = fs.existsSync(outputPath) ? JSON.parse(fs.readFileSync(outputPath, "utf8")) : {};
 for (const page of Object.values(curated)) Object.assign(output, page);
 const corrected = pages.map(page => corrections.find(item => item.page === page.page) ?? page);
-const heading = /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/;
+const isHeading = line => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/.test(line)
+  && line.length < 60
+  && !/[.!?。！？]$/.test(line);
 const lines = [...new Set(corrected.flatMap(page => page.groups.flatMap(group => group.lines)))]
-  .filter(line => line && !heading.test(line) && !/^[（(].*[）)]$/.test(line) && /[ぁ-んァ-ヶ一-龯々]/.test(line));
+  .filter(line => line && !isHeading(line) && !/^[（(].*[）)]$/.test(line) && /[ぁ-んァ-ヶ一-龯々]/.test(line));
 
 async function translate(text) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
