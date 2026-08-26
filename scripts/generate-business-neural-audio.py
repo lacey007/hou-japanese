@@ -8,7 +8,12 @@ import edge_tts
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = json.loads((ROOT / "data" / "business-pages.json").read_text(encoding="utf-8"))
-CORRECTIONS = json.loads((ROOT / "data" / "business-pages-corrections-92-96.json").read_text(encoding="utf-8"))
+CORRECTION_FILES = [
+    "business-pages-corrections-8-18.json",
+    "business-pages-corrections-92-96.json",
+    "business-pages-corrections-97-110.json",
+]
+CORRECTIONS = [item for name in CORRECTION_FILES for item in json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))]
 PAGES = [next((item for item in CORRECTIONS if item["page"] == page["page"]), page) for page in PAGES]
 OUT = ROOT / "public" / "audio" / "business"
 MANIFEST = ROOT / "data" / "business-audio-manifest.json"
@@ -37,7 +42,8 @@ def build_jobs():
                 key = f"{page_no}-{group_index}-{line_index}"
                 if key in ignored_ocr_keys:
                     continue
-                if not line or SUBHEADING.match(line) or re.match(r"^[（(].*[）)]$", line):
+                is_subheading = bool(SUBHEADING.match(line) and len(line) < 60 and not re.search(r"[.!?。！？]$", line))
+                if not line or is_subheading or re.match(r"^[（(].*[）)]$", line):
                     continue
                 spoken = clean_text(line)
                 if not spoken or "\ufffd" in spoken or not re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken):
