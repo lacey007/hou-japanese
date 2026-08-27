@@ -3,6 +3,7 @@ import deepseekGrammar from "@/data/business-grammar-deepseek.json";
 import deepseekGrammar102 from "@/data/business-grammar-deepseek-102.json";
 import deepseek111120 from "@/data/business-deepseek-111-120.json";
 import deepseek121130 from "@/data/business-deepseek-121-130.json";
+import deepseek131140 from "@/data/business-deepseek-131-140.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
@@ -17,6 +18,9 @@ const deepseek111120ByLine = Object.fromEntries(
 ) as Record<string, DeepSeekSentenceNote>;
 const deepseek121130ByLine = Object.fromEntries(
   (deepseek121130 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
+) as Record<string, DeepSeekSentenceNote>;
+const deepseek131140ByLine = Object.fromEntries(
+  (deepseek131140 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
 ) as Record<string, DeepSeekSentenceNote>;
 
 const page110ReadingsByLine: Record<string, BusinessWord[]> = {
@@ -176,6 +180,10 @@ export const grammarMemoForBusinessLine = (line: string) => {
   const page121130Note = deepseek121130ByLine[line];
   if (page121130Note?.grammar) {
     return [{ title: "DeepSeek 本句语法详解", detail: page121130Note.grammar }];
+  }
+  const page131140Note = deepseek131140ByLine[line];
+  if (page131140Note?.grammar) {
+    return [{ title: "DeepSeek 本句语法详解", detail: page131140Note.grammar }];
   }
   if (/[A-Za-z]{3}/.test(line) && !/[ぁ-んァ-ン一-龯]/.test(line)) {
     const englishRules = [
