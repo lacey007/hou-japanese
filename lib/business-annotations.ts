@@ -9,6 +9,61 @@ const deepseekGrammarByLine = {
   ...(deepseekGrammar as Record<string, string>),
   ...(deepseekGrammar102 as Record<string, string>),
 };
+
+const page110ReadingsByLine: Record<string, BusinessWord[]> = {
+  "③ブラック：部長、すいません。今から三崎産業へ行くんですが、直帰してもかまいませんか。": [
+    { surface: "三崎産業", reading: "みさきさんぎょう", meaning: "" },
+    { surface: "直帰", reading: "ちょっき", meaning: "" },
+  ],
+  "岩倉：でもなあ、会議は朝一だからなあ……。僕も一応目をとおしておきたいし、やっぱり、戻ってくれない？ だれかに手伝わせれば、早めに終わるんじゃない？": [
+    { surface: "会議", reading: "かいぎ", meaning: "" },
+    { surface: "朝一", reading: "あさいち", meaning: "" },
+    { surface: "一応", reading: "いちおう", meaning: "" },
+    { surface: "目をとおす", reading: "めをとおす", meaning: "" },
+  ],
+  "岩倉：深谷くんあたりにでも頼めば、こころよくひきうけてくれるんじゃない？": [
+    { surface: "深谷", reading: "ふかや", meaning: "" },
+    { surface: "頼めば", reading: "たのめば", meaning: "" },
+    { surface: "引き受けて", reading: "ひきうけて", meaning: "" },
+  ],
+  "ブラック：深谷さんには、この前も手伝ってもらったし、そうたびたび頼むわけにはいかないですよ。": [
+    { surface: "深谷", reading: "ふかや", meaning: "" },
+    { surface: "手伝って", reading: "てつだって", meaning: "" },
+    { surface: "頼む", reading: "たのむ", meaning: "" },
+  ],
+  "岩倉：それじゃあ、サッサッサーと作ってからにしてよ。": [
+    { surface: "作って", reading: "つくって", meaning: "" },
+  ],
+  "ブラック：ええ、時間はかからないと思いますが。やっぱり、無理でしょうか、直帰するのは。": [
+    { surface: "時間", reading: "じかん", meaning: "" },
+    { surface: "無理", reading: "むり", meaning: "" },
+    { surface: "直帰", reading: "ちょっき", meaning: "" },
+  ],
+};
+
+const page110GrammarByLine: Record<string, { title: string; detail: string }[]> = {
+  "岩倉：でもなあ、会議は朝一だからなあ……。僕も一応目をとおしておきたいし、やっぱり、戻ってくれない？ だれかに手伝わせれば、早めに終わるんじゃない？": [
+    { title: "朝一（あさいち）", detail: "表示早上第一个时段，常指一上班就要处理的事情。本句「会議は朝一だから」说明会议一早马上开始，隐含没有时间缓冲、必须提前准备好的紧迫感。" },
+    { title: "目を通す（めをとおす）", detail: "固定搭配，表示浏览、过目或审阅。这里的「一応目をとおしておきたい」由「一応＋目を通す＋ておく＋たい」构成，意思是“我也想至少事先看一遍”。「～ておく」表示为之后的会议提前完成准备。动词原形：通す（とおす）。" },
+    { title: "手伝わせれば", detail: "「手伝う」的使役形「手伝わせる」再变为假定形「手伝わせれば」，表示“如果让某个人帮忙的话”。这里是上司提出解决方案，语气比直接命令某个人来帮忙更像建议。动词原形：手伝う（てつだう）。" },
+  ],
+  "岩倉：深谷くんあたりにでも頼めば、こころよくひきうけてくれるんじゃない？": [
+    { title: "深谷くんあたりにでも", detail: "「あたり」表示举例，相当于“深谷之类的人”；「に」表示拜托的对象；「でも」表示“哪怕……也好／比如……也行”，进一步弱化指定感。合起来是“找深谷这样的人帮忙不就行了吗”，语气轻描淡写，并非强制指定深谷。" },
+    { title: "頼めば（たのめば）", detail: "「頼む」的ば形，表示假定条件“如果拜托的话”。变化：頼む→頼めば。动词原形：頼む（たのむ）。" },
+    { title: "こころよく引き受けてくれる", detail: "「こころよく」表示爽快地、乐意地；「引き受ける」表示接受、承担任务；「～てくれる」表示别人为说话人或相关人员做某事。整体是“会爽快地替你承担下来”。动词原形：引き受ける（ひきうける）、くれる。" },
+    { title: "～んじゃない？", detail: "「～のではないか」的口语形式，用于委婉推测并征求认同，相当于“不是会……吗／应该会……吧”。本句不是单纯否定，而是在劝对方考虑这个办法。" },
+  ],
+  "ブラック：深谷さんには、この前も手伝ってもらったし、そうたびたび頼むわけにはいかないですよ。": [
+    { title: "手伝ってもらったし", detail: "「手伝う→手伝ってもらう」表示请别人帮助或得到别人的帮助；「た」表示过去；句末「し」列举理由，并暗示还有其他顾虑。整体是“之前已经请他帮过忙了，而且……”。动词原形：手伝う（てつだう）、もらう。" },
+    { title: "そう／たびたび", detail: "这里的「そう」不是“听说”，而是副词性地表示“那样地、如此地”；「たびたび」表示屡次、频繁。合起来「そうたびたび」相当于“不能那么三番五次地”。" },
+    { title: "頼むわけにはいかない", detail: "「动词辞书形＋わけにはいかない」表示并非能力上做不到，而是出于道理、人情、立场或责任而“不便那样做”。本句指已经让深谷帮过忙，从情理上不好意思再三拜托。动词原形：頼む（たのむ）。" },
+  ],
+  "岩倉：それじゃあ、サッサッサーと作ってからにしてよ。": [
+    { title: "サッサッサーと", detail: "拟声拟态副词，是「さっさと」的口语强调说法，表示动作快速、麻利、不拖延。这里带有上司催促对方赶快完成文件的语气。" },
+    { title: "作って（つくって）から", detail: "「动词て形＋から」表示完成前项之后再进行后项，即“做完之后”。动词原形：作る（つくる）。" },
+    { title: "～してからにする", detail: "固定结构，表示“等做完……之后再说／再决定”。本句「作ってからにしてよ」省略了后面的「直帰するのは」，完整理解为“要直接回家的话，等把文件做完再说”。「よ」用于告知、要求或劝告。动词原形：する。" },
+  ],
+};
 const contextMeanings: Record<string, string> = {
   "(章ことの特長)": "（各章的特点）",
   "（田中と塚田、名刺を交換しながら）": "（田中和塚田一边交换名片一边交谈）",
@@ -79,6 +134,7 @@ const extraKanjiReadings: BusinessWord[] = [
 ];
 
 export const kanjiReadingsForBusinessLine = (line: string) => {
+  if (page110ReadingsByLine[line]) return page110ReadingsByLine[line];
   const analyzed = analyzedLines[line]?.readings;
   if (analyzed?.length) return analyzed.map(item => ({ ...item, meaning: "" }));
   const candidates = [...businessWords, ...extraKanjiReadings].sort((a, b) => b.surface.length - a.surface.length);
@@ -93,6 +149,7 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
 };
 
 export const grammarMemoForBusinessLine = (line: string) => {
+  if (page110GrammarByLine[line]) return page110GrammarByLine[line];
   if (/[A-Za-z]{3}/.test(line) && !/[ぁ-んァ-ン一-龯]/.test(line)) {
     const englishRules = [
       { test: /has been designed/, title: "Present perfect passive", detail: "“has been designed” 是现在完成时的被动语态：has/have + been + 过去分词。表示设计这一动作已经完成，而且结果与现在仍有关联。" },
