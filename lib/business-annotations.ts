@@ -1,6 +1,7 @@
 import languageNotes from "@/data/business-language-notes.json";
 import deepseekGrammar from "@/data/business-grammar-deepseek.json";
 import deepseekGrammar102 from "@/data/business-grammar-deepseek-102.json";
+import deepseek111120 from "@/data/business-deepseek-111-120.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
@@ -9,6 +10,10 @@ const deepseekGrammarByLine = {
   ...(deepseekGrammar as Record<string, string>),
   ...(deepseekGrammar102 as Record<string, string>),
 };
+type DeepSeekSentenceNote = { page: number; line: string; translation: string; grammar: string };
+const deepseek111120ByLine = Object.fromEntries(
+  (deepseek111120 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
+) as Record<string, DeepSeekSentenceNote>;
 
 const page110ReadingsByLine: Record<string, BusinessWord[]> = {
   "③ブラック：部長、すいません。今から三崎産業へ行くんですが、直帰してもかまいませんか。": [
@@ -150,6 +155,10 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
 
 export const grammarMemoForBusinessLine = (line: string) => {
   if (page110GrammarByLine[line]) return page110GrammarByLine[line];
+  const page111120Note = deepseek111120ByLine[line];
+  if (page111120Note?.grammar) {
+    return [{ title: "DeepSeek 本句语法详解", detail: page111120Note.grammar }];
+  }
   if (/[A-Za-z]{3}/.test(line) && !/[ぁ-んァ-ン一-龯]/.test(line)) {
     const englishRules = [
       { test: /has been designed/, title: "Present perfect passive", detail: "“has been designed” 是现在完成时的被动语态：has/have + been + 过去分词。表示设计这一动作已经完成，而且结果与现在仍有关联。" },
