@@ -26,6 +26,8 @@ CIRCLED = re.compile(r"[①-⑳㉑-㉟㊱-㊿❶-❿]")
 
 def clean_text(text: str) -> str:
     text = re.sub(r"^.*?[：:]\s*", "", text)
+    # K.K. is a written abbreviation for 株式会社 in company names; do not read it aloud.
+    text = re.sub(r"[（(]\s*K\.?\s*K\.?\s*[）)]", "", text, flags=re.IGNORECASE)
     text = CIRCLED.sub("", text)
     text = re.sub(r"^\s*[（(]?[0-9０-９]+[）).．、]\s*", "", text)
     text = re.sub(r"[^\u0020-\u007Eぁ-んァ-ヶ一-龯々。、！？…「」『』（）ー]", "", text)

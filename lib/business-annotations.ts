@@ -50,6 +50,15 @@ const page110ReadingsByLine: Record<string, BusinessWord[]> = {
   ],
 };
 
+const page112ReadingsByLine: Record<string, BusinessWord[]> = {
+  "ノーマン：あのう、部長、竹林さんが担当している北洋（K.K.）なんですが、やらせていただけないでしょうか。竹林さんからはよく話も聞いていましたし、それに、北洋（K.K.）の人とは何回も会ったことがあるし……。": [
+    { surface: "竹林", reading: "たけばやし", meaning: "" },
+    { surface: "北洋", reading: "ほくよう", meaning: "" },
+    { surface: "担当", reading: "たんとう", meaning: "" },
+    { surface: "何回", reading: "なんかい", meaning: "" },
+  ],
+};
+
 const page110GrammarByLine: Record<string, { title: string; detail: string }[]> = {
   "岩倉：でもなあ、会議は朝一だからなあ……。僕も一応目をとおしておきたいし、やっぱり、戻ってくれない？ だれかに手伝わせれば、早めに終わるんじゃない？": [
     { title: "朝一（あさいち）", detail: "表示早上第一个时段，常指一上班就要处理的事情。本句「会議は朝一だから」说明会议一早马上开始，隐含没有时间缓冲、必须提前准备好的紧迫感。" },
@@ -144,6 +153,7 @@ const extraKanjiReadings: BusinessWord[] = [
 
 export const kanjiReadingsForBusinessLine = (line: string) => {
   if (page110ReadingsByLine[line]) return page110ReadingsByLine[line];
+  if (page112ReadingsByLine[line]) return page112ReadingsByLine[line];
   const analyzed = analyzedLines[line]?.readings;
   if (analyzed?.length) return analyzed.map(item => ({ ...item, meaning: "" }));
   const candidates = [...businessWords, ...extraKanjiReadings].sort((a, b) => b.surface.length - a.surface.length);
