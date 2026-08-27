@@ -11,6 +11,7 @@ import deepseek111120 from "@/data/business-deepseek-111-120.json";
 import deepseek121130 from "@/data/business-deepseek-121-130.json";
 import deepseek131140 from "@/data/business-deepseek-131-140.json";
 import deepseek141150 from "@/data/business-deepseek-141-150.json";
+import deepseek151160 from "@/data/business-deepseek-151-160.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 type Page = { page: number; image: string; segments: string[]; groups: { title: string; lines: string[] }[] };
@@ -29,6 +30,9 @@ const deepseek131140Translations = Object.fromEntries(
 ) as Record<string, string>;
 const deepseek141150Translations = Object.fromEntries(
   (deepseek141150 as DeepSeekSentenceNote[]).map(item => [item.line, item.translation]),
+) as Record<string, string>;
+const deepseek151160Translations = Object.fromEntries(
+  (deepseek151160 as DeepSeekSentenceNote[]).map(item => [item.line, item.translation]),
 ) as Record<string, string>;
 
 const isSubheading = (text: string) => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])/.test(text)
@@ -159,7 +163,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
           const nameReading = (businessNameReadings as Record<string, string>)[speakerName];
           const baseReadings = kanjiReadingsForBusinessLine(text);
           const kanjiReadings = nameReading && !baseReadings.some(item => item.surface === speakerName) ? [{ surface: speakerName, reading: nameReading, meaning: "" }, ...baseReadings] : baseReadings;
-          const sentenceMeaning = deepseek141150Translations[text] ?? deepseek131140Translations[text] ?? deepseek121130Translations[text] ?? deepseek111120Translations[text] ?? pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? (allBusinessTranslations as Record<string, string>)[text] ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page);
+          const sentenceMeaning = deepseek151160Translations[text] ?? deepseek141150Translations[text] ?? deepseek131140Translations[text] ?? deepseek121130Translations[text] ?? deepseek111120Translations[text] ?? pageTranslations[text] ?? fixedBusinessMeaning(text, page.page) ?? (allBusinessTranslations as Record<string, string>)[text] ?? annotation?.meaning ?? meaningForBusinessLine(text, page.page);
           return <div key={lineIndex} onClick={event => { if (heading) return; event.stopPropagation(); setSegment(i); void speakLine(text, lineKey); }} className={`rounded-xl px-3 py-2 transition ${heading ? "" : "cursor-pointer hover:bg-white/70"} ${activeLine === lineKey ? "bg-white ring-1 ring-matcha" : ""}`}>
             <p className={`text-lg leading-8 ${heading ? "font-bold" : ""}`}>{text}</p>
             {showKana && !heading && kanjiReadings.length > 0 && <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#587467]">{kanjiReadings.map(word => <span key={word.surface} className="rounded-md bg-white/80 px-2 py-1">{word.surface}<span className="mx-1 text-[#9aa6a0]">·</span>{word.reading}</span>)}</div>}
