@@ -17,6 +17,7 @@ CORRECTION_FILES = [
     "business-pages-corrections-131-140.json",
     "business-pages-corrections-141-150.json",
     "business-pages-corrections-151-160.json",
+    "business-pages-corrections-161-170.json",
 ]
 CORRECTIONS = [item for name in CORRECTION_FILES for item in json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))]
 PAGES = [next((item for item in CORRECTIONS if item["page"] == page["page"]), page) for page in PAGES]
