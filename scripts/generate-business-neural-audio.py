@@ -12,6 +12,7 @@ CORRECTION_FILES = [
     "business-pages-corrections-5-30.json",
     "business-pages-corrections-31-40.json",
     "business-pages-corrections-41-50.json",
+    "business-pages-corrections-51-70.json",
     "business-pages-corrections-8-18.json",
     "business-pages-corrections-92-96.json",
     "business-pages-corrections-97-110.json",

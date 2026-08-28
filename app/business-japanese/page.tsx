@@ -4,6 +4,7 @@ import pages from "@/data/business-pages.json";
 import corrections530 from "@/data/business-pages-corrections-5-30.json";
 import corrections3140 from "@/data/business-pages-corrections-31-40.json";
 import corrections4150 from "@/data/business-pages-corrections-41-50.json";
+import corrections5170 from "@/data/business-pages-corrections-51-70.json";
 import corrections from "@/data/business-pages-corrections-92-96.json";
 import corrections97110 from "@/data/business-pages-corrections-97-110.json";
 import corrections111120 from "@/data/business-pages-corrections-111-120.json";
@@ -20,7 +21,7 @@ import BusinessJapanesePlayer from "@/components/BusinessJapanesePlayer";
 
 export default function BusinessJapanesePage() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-  const allCorrections = [...corrections530, ...corrections3140, ...corrections4150, ...corrections, ...corrections97110, ...corrections111120, ...corrections121130, ...corrections131140, ...corrections141150, ...corrections151160, ...corrections161170, ...corrections171180, ...corrections181190, ...corrections191203, ...corrections818];
+  const allCorrections = [...corrections530, ...corrections3140, ...corrections4150, ...corrections5170, ...corrections, ...corrections97110, ...corrections111120, ...corrections121130, ...corrections131140, ...corrections141150, ...corrections151160, ...corrections161170, ...corrections171180, ...corrections181190, ...corrections191203, ...corrections818];
   const staticPages = pages.map(page => {
     const selected = allCorrections.find(item => item.page === page.page) ?? page;
     return { ...selected, segments: "segments" in selected ? selected.segments : [], image: `${basePath}${page.image}` };

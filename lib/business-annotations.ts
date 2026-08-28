@@ -11,6 +11,7 @@ import deepseek171180 from "@/data/business-deepseek-171-180.json";
 import deepseek2030 from "@/data/business-deepseek-20-30.json";
 import deepseek3140 from "@/data/business-deepseek-31-40.json";
 import deepseek4150 from "@/data/business-deepseek-41-50.json";
+import deepseek5170 from "@/data/business-deepseek-51-70.json";
 import deepseekEnglishRules from "@/data/business-deepseek-english-rules.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
@@ -29,6 +30,9 @@ const deepseek3140ByLine = Object.fromEntries(
 ) as Record<string, DeepSeekSentenceNote>;
 const deepseek4150ByLine = Object.fromEntries(
   (deepseek4150 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
+) as Record<string, DeepSeekSentenceNote>;
+const deepseek5170ByLine = Object.fromEntries(
+  (deepseek5170 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
 ) as Record<string, DeepSeekSentenceNote>;
 const deepseek111120ByLine = Object.fromEntries(
   (deepseek111120 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
@@ -206,6 +210,10 @@ export const kanjiReadingsForBusinessLine = (line: string) => {
 
 export const grammarMemoForBusinessLine = (line: string) => {
   if (page110GrammarByLine[line]) return page110GrammarByLine[line];
+  const page5170Note = deepseek5170ByLine[line];
+  if (page5170Note?.grammar) {
+    return [{ title: "DeepSeek 本句语法详解", detail: page5170Note.grammar }];
+  }
   const page4150Note = deepseek4150ByLine[line];
   if (page4150Note?.grammar) {
     return [{ title: "DeepSeek 本句语法详解", detail: page4150Note.grammar }];
