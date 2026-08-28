@@ -9,6 +9,7 @@ import edge_tts
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = json.loads((ROOT / "data" / "business-pages.json").read_text(encoding="utf-8"))
 CORRECTION_FILES = [
+    "business-pages-corrections-5-30.json",
     "business-pages-corrections-8-18.json",
     "business-pages-corrections-92-96.json",
     "business-pages-corrections-97-110.json",
@@ -62,7 +63,7 @@ def build_jobs():
                 spoken = clean_text(line)
                 if not spoken or "\ufffd" in spoken:
                     continue
-                language = "ja" if re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken) else "en" if 174 <= page_no <= 201 and re.search(r"[A-Za-z]{3}", spoken) else ""
+                language = "ja" if re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken) else "en" if (page_no == 5 or 174 <= page_no <= 201) and re.search(r"[A-Za-z]{3}", spoken) else ""
                 if not language:
                     continue
                 match = re.match(r"^([^：:]{1,16})[：:]", line)
