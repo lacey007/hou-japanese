@@ -70,7 +70,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const annotations: Record<string, { reading: string; meaning: string }> = {};
   const page = pages[pageIndex];
   const group = page.groups[segment];
-  const isEnglishPage = page.page >= 174;
+  const isEnglishPage = page.page >= 174 && page.page <= 201;
   useEffect(() => {
     const value = getLessonProgress("business-japanese");
     if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));

@@ -20,6 +20,7 @@ CORRECTION_FILES = [
     "business-pages-corrections-161-170.json",
     "business-pages-corrections-171-180.json",
     "business-pages-corrections-181-190.json",
+    "business-pages-corrections-191-203.json",
 ]
 CORRECTIONS = [item for name in CORRECTION_FILES for item in json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))]
 PAGES = [next((item for item in CORRECTIONS if item["page"] == page["page"]), page) for page in PAGES]
@@ -61,7 +62,7 @@ def build_jobs():
                 spoken = clean_text(line)
                 if not spoken or "\ufffd" in spoken:
                     continue
-                language = "ja" if re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken) else "en" if 181 <= page_no <= 190 and re.search(r"[A-Za-z]{3}", spoken) else ""
+                language = "ja" if re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken) else "en" if 174 <= page_no <= 201 and re.search(r"[A-Za-z]{3}", spoken) else ""
                 if not language:
                     continue
                 match = re.match(r"^([^：:]{1,16})[：:]", line)
