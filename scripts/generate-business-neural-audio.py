@@ -19,12 +19,16 @@ CORRECTION_FILES = [
     "business-pages-corrections-151-160.json",
     "business-pages-corrections-161-170.json",
     "business-pages-corrections-171-180.json",
+    "business-pages-corrections-181-190.json",
 ]
 CORRECTIONS = [item for name in CORRECTION_FILES for item in json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))]
 PAGES = [next((item for item in CORRECTIONS if item["page"] == page["page"]), page) for page in PAGES]
 OUT = ROOT / "public" / "audio" / "business"
 MANIFEST = ROOT / "data" / "business-audio-manifest.json"
-VOICES = {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"}
+VOICES = {
+    "ja": {"female": "ja-JP-NanamiNeural", "male": "ja-JP-KeitaNeural"},
+    "en": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
+}
 SUBHEADING = re.compile(r"^[0-9０-９]{1,2}[.．、]?(?![0-9０-９])")
 CIRCLED = re.compile(r"[①-⑳㉑-㉟㊱-㊿❶-❿]")
 
@@ -55,7 +59,10 @@ def build_jobs():
                 if not line or is_subheading or re.match(r"^[（(].*[）)]$", line):
                     continue
                 spoken = clean_text(line)
-                if not spoken or "\ufffd" in spoken or not re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken):
+                if not spoken or "\ufffd" in spoken:
+                    continue
+                language = "ja" if re.search(r"[ぁ-んァ-ヶ一-龯々]", spoken) else "en" if 181 <= page_no <= 190 and re.search(r"[A-Za-z]{3}", spoken) else ""
+                if not language:
                     continue
                 match = re.match(r"^([^：:]{1,16})[：:]", line)
                 speaker = CIRCLED.sub("", match.group(1)).replace("女", "").replace("男", "") if match else "旁白"
@@ -67,8 +74,8 @@ def build_jobs():
                     gender = speakers[speaker]
                 relative = f"audio/business/page-{page_no:03d}/group-{group_index:02d}-line-{line_index:03d}.mp3"
                 target = ROOT / "public" / relative
-                manifest[key] = {"src": f"/{relative}", "voice": gender, "speaker": speaker}
-                jobs.append((key, spoken, VOICES[gender], target))
+                manifest[key] = {"src": f"/{relative}", "voice": gender, "speaker": speaker, "language": language}
+                jobs.append((key, spoken, VOICES[language][gender], target))
     return jobs, manifest
 
 

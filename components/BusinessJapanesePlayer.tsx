@@ -17,7 +17,7 @@ import deepseek171180 from "@/data/business-deepseek-171-180.json";
 import { getLessonProgress, saveProgress, saveWord as saveLocalWord } from "@/lib/local-study";
 
 type Page = { page: number; image: string; segments: string[]; groups: { title: string; lines: string[] }[] };
-type AudioEntry = { src: string; voice: "female" | "male"; speaker: string };
+type AudioEntry = { src: string; voice: "female" | "male"; speaker: string; language?: "ja" | "en" };
 const neuralAudio = businessAudioManifest as Record<string, AudioEntry>;
 const audioBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 type DeepSeekSentenceNote = { page: number; line: string; translation: string; grammar: string };
@@ -70,6 +70,7 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const annotations: Record<string, { reading: string; meaning: string }> = {};
   const page = pages[pageIndex];
   const group = page.groups[segment];
+  const isEnglishPage = page.page >= 174;
   useEffect(() => {
     const value = getLessonProgress("business-japanese");
     if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));
@@ -105,7 +106,12 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       setLoading(true);
       const player = new Audio(`${audioBasePath}${item.audio.src}?v=20260826-5`);
       audioPlayer.current = player; player.playbackRate = speed; player.preload = "auto";
-      player.onplaying = () => { setLoading(false); setPlaying(true); setActiveLine(item.key); setActiveVoice(item.audio.voice === "female" ? "Nanami Neural · 自然女声" : "Keita Neural · 自然男声"); };
+      player.onplaying = () => {
+        setLoading(false); setPlaying(true); setActiveLine(item.key);
+        setActiveVoice(item.audio.language === "en"
+          ? (item.audio.voice === "female" ? "Aria Neural · 自然英文女声" : "Guy Neural · 自然英文男声")
+          : (item.audio.voice === "female" ? "Nanami Neural · 自然日语女声" : "Keita Neural · 自然日语男声"));
+      };
       player.onended = () => { cursor += 1; playNext(); };
       player.onerror = () => { setLoading(false); setPlaying(false); setActiveLine(""); setAudioError("神经语音加载失败，请检查网络后重试。"); };
       player.play().catch(() => player.onerror?.(new Event("error")));
@@ -156,13 +162,13 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / 203</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
         <div className="mt-5 flex items-center gap-3"><button onClick={toggle} disabled={!page.groups.length || loading} className="grid h-14 w-14 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20">{loading ? <LoaderCircle className="animate-spin"/> : playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="flex flex-1 flex-wrap gap-2"><button onClick={() => changeSegment(segment - 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一段</button><button onClick={() => changeSegment(segment + 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs">下一段<ChevronRight size={15}/></button><button onClick={() => setLoop(!loop)} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border bg-white"}`}><Repeat1 size={15}/>整段循环</button></div></div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="rounded-full border bg-white px-3 py-2">Nanami · Neural 女声</span><span className="rounded-full border bg-white px-3 py-2">Keita · Neural 男声</span></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
-        <p className="mt-2 text-xs text-[#75807a]">已改用预生成的 Microsoft Neural 自然语音；整段对话会根据说话人自动切换 Nanami 女声与 Keita 男声。</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="rounded-full border bg-white px-3 py-2">{isEnglishPage ? "Aria · Neural 英文女声" : "Nanami · Neural 日语女声"}</span><span className="rounded-full border bg-white px-3 py-2">{isEnglishPage ? "Guy · Neural 英文男声" : "Keita · Neural 日语男声"}</span></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
+        <p className="mt-2 text-xs text-[#75807a]">已改用预生成的 Microsoft Neural 自然语音；整段对话会根据说话人自动切换{isEnglishPage ? " Aria 英文女声与 Guy 英文男声" : " Nanami 日语女声与 Keita 日语男声"}。</p>
         {activeVoice && <p className="mt-3 text-xs text-[#75807a]">当前使用：{activeVoice}</p>}
         {audioError && <p className="mt-4 rounded-xl bg-[#f7e4e1] px-4 py-3 text-sm text-[#955b57]">{audioError}</p>}
       </div>
       <div className="p-5 md:p-7"><div className="mb-5 flex items-center justify-between"><button onClick={() => changePage(pageIndex - 1)} disabled={pageIndex === 0} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">← 上一页</button><select value={pageIndex} onChange={e => changePage(Number(e.target.value))} className="rounded-full border bg-white px-4 py-2 text-sm">{pages.map((item, i) => <option key={item.page} value={i}>第 {item.page} 页</option>)}</select><button onClick={() => changePage(pageIndex + 1)} disabled={pageIndex === pages.length - 1} className="rounded-full border px-4 py-2 text-sm disabled:opacity-30">下一页 →</button></div>
-        <div className="mb-5 flex flex-wrap items-center gap-2 text-xs"><Languages size={16} className="mr-1 text-matcha"/><span className="rounded-full bg-matcha px-3 py-1.5 text-white">日文</span><button onClick={() => setShowKana(!showKana)} className={`rounded-full px-3 py-1.5 ${showKana ? "bg-[#e1ebe6] text-matcha" : "bg-[#eee] text-[#888]"}`}>假名</button><button onClick={() => setShowCn(!showCn)} className={`rounded-full px-3 py-1.5 ${showCn ? "bg-[#f4e5e3] text-[#985f5c]" : "bg-[#eee] text-[#888]"}`}>中文</button></div>
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-xs"><Languages size={16} className="mr-1 text-matcha"/><span className="rounded-full bg-matcha px-3 py-1.5 text-white">{isEnglishPage ? "英文" : "日文"}</span>{!isEnglishPage && <button onClick={() => setShowKana(!showKana)} className={`rounded-full px-3 py-1.5 ${showKana ? "bg-[#e1ebe6] text-matcha" : "bg-[#eee] text-[#888]"}`}>假名</button>}<button onClick={() => setShowCn(!showCn)} className={`rounded-full px-3 py-1.5 ${showCn ? "bg-[#f4e5e3] text-[#985f5c]" : "bg-[#eee] text-[#888]"}`}>中文</button></div>
         {page.groups.length ? <div className="space-y-5">{page.groups.map((item, i) => <div key={i} onClick={() => setSegment(i)} className={`block w-full cursor-pointer rounded-2xl border p-5 text-left transition ${i === segment ? "border-matcha bg-[#eef4f1] text-[#26463a]" : "border-[#e4e1d8] hover:bg-[#f7f6f2]"}`}>{item.title && <p className="mb-3 text-lg font-bold leading-8">{item.title}</p>}<div className="space-y-3">{item.lines.map((text, lineIndex) => {
           const lineKey = `${page.page}-${i}-${lineIndex}`;
           const heading = isSubheading(text);

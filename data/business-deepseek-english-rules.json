@@ -1,0 +1,82 @@
+[
+  {
+    "id": "present-perfect",
+    "title": "现在完成时 (Present Perfect)",
+    "detail": "结构：have/has + 过去分词。表示过去发生的动作对现在有影响或结果，或从过去持续到现在的动作。强调‘已完成’或‘已发生’且与现在相关。商务场景：报告工作进展（We have completed the report.），说明经验（I have handled similar cases.），通知变化（The price has increased.）。常与already, yet, just, recently, for, since连用。"
+  },
+  {
+    "id": "past-perfect",
+    "title": "过去完成时 (Past Perfect)",
+    "detail": "结构：had + 过去分词。表示在过去某个时间点之前已经完成的动作，即‘过去的过去’。用于描述时间顺序或因果关系。商务场景：说明在某个过去事件之前已完成的事项（By the time we met, I had reviewed all documents.），解释延误原因（The shipment had arrived before we received the payment.）。"
+  },
+  {
+    "id": "passive-voice",
+    "title": "被动语态 (Passive Voice)",
+    "detail": "结构：be动词 + 过去分词（一般时态对应变化）。强调动作的承受者，而非执行者。常用于客观陈述、正式文件或未知/不重要执行者时。商务场景：报告事件（The meeting was postponed.），说明规定（All invoices must be approved.），描述流程（The products are shipped weekly.）。可省略by短语以保持语气中立。"
+  },
+  {
+    "id": "modal-verbs",
+    "title": "情态动词 (Modal Verbs)",
+    "detail": "常见情态动词：can, could, may, might, must, shall, should, will, would。表示能力、可能性、必要性、许可、义务或推测。商务场景：must表示强义务（You must submit by Friday.），may/might表示可能（We may consider your offer.），can表示能力或允许（We can deliver within 24 hours.）。语气从强到弱：must > should > may > could。"
+  },
+  {
+    "id": "conditionals",
+    "title": "条件句 (Conditionals)",
+    "detail": "分真实条件（零条件/第一条件）和非真实条件（第二条件/第三条件）。零条件：if + 一般现在时，+ 一般现在时（事实）。第一条件：if + 一般现在时，+ will/can/may + 动词原形（真实可能情况）。第二条件：if + 一般过去时，+ would/could + 动词原形（与现在事实相反）。第三条件：if + 过去完成时，+ would have + 过去分词（与过去事实相反）。商务场景：讨论计划（If we lower price, sales will increase.），假设分析（If we had invested, we would have gained.）"
+  },
+  {
+    "id": "relative-clauses",
+    "title": "定语从句 (Relative Clauses)",
+    "detail": "关系代词：who（人）, which（物/事）, that（人/物），whose（所属关系）。用于修饰名词，提供额外信息。限制性定语从句（无逗号）使先行词具体化（The report that you wrote is excellent.）；非限制性定语从句（逗号）补充信息，可省略（Our CEO, who is in London, sent a message.）。商务场景：明确说明部门、人员、项目（The client who called yesterday left a message.）。"
+  },
+  {
+    "id": "object-clauses",
+    "title": "宾语从句 (Object Clauses)",
+    "detail": "结构：主句 + that（可省略）/ if / whether / 疑问词 + 陈述句（用陈述语序）。作为及物动词的宾语，表达想法、感受、观点或信息。商务场景：说明观点（I think that the proposal is solid.），确认信息（He confirmed that the shipment left on time.），询问（Could you tell me if the meeting is confirmed?）。注意引导词和语序。"
+  },
+  {
+    "id": "indirect-questions",
+    "title": "间接疑问句 (Indirect Questions)",
+    "detail": "结构：礼貌引导语 + if/whether/疑问词 + 陈述语序（主语+动词）。用于正式或礼貌的提问。商务场景：委婉询问信息（Could you tell me when the report will be ready?），询问意见（I'd like to know if you agree with the plan.），间接获取信息（Could you please let us know whether the payment has been processed?）。避免直接疑问句的突兀，提升专业度。"
+  },
+  {
+    "id": "gerunds",
+    "title": "动名词 (Gerunds)",
+    "detail": "结构：动词ing形式作名词。可作主语、宾语或介词宾语。常用于表示行为、活动或习惯。商务场景：作主语（Negotiating is a key skill.），作宾语（We appreciate your cooperation.），作介词宾语（We look forward to meeting you.）。特定动词后接动名词：avoid, consider, discuss, finish, suggest, recommend, appreciate。"
+  },
+  {
+    "id": "infinitives",
+    "title": "不定式 (Infinitives)",
+    "detail": "结构：to + 动词原形。可作名词、形容词或副词。常表示目的、意图或将来动作。商务场景：作目的（We need to increase efficiency.），作宾语（I want to discuss the contract.），作形容词（This is the document to sign.）。常见动词接不定式：want, need, plan, decide, agree, promise, expect, hope, intend, offer, refuse。"
+  },
+  {
+    "id": "polite-requests-would-could",
+    "title": "委婉请求 (Would/Could)",
+    "detail": "结构：Would/Could + 主语 + 动词原形？语气比can更礼貌、委婉，表达请求或许可。商务场景：请求协助（Could you please send me the file?），请求许可（Would you mind if I used your phone?），询问意见（Would you like to review the draft?）。在英文商务交流中，使用would/could能有效提升礼貌和专业性，尤其在上级或客户面前。"
+  },
+  {
+    "id": "suggestions-should-had-better",
+    "title": "建议 (Should / Had better)",
+    "detail": "should + 动词原形：表示建议或义务，语气较弱较客气（You should reconsider the offer.）。had better + 动词原形：表示强烈建议或警告，语气更强，暗示如果不做可能有负面后果（You had better call them now.）。商务场景：提供建议（We should review the contract before signing.），紧急提示（You'd better confirm the order today.）。"
+  },
+  {
+    "id": "present-continuous",
+    "title": "现在进行时 (Present Continuous)",
+    "detail": "结构：am/is/are + 现在分词。表示此刻正在进行的动作，或现阶段正在执行但未必此刻进行的活动。商务场景：说明当前项目进展（We are developing a new product.），描述临时安排（We are using a temporary office.），告知正在进行的操作（I am preparing the presentation.）。常与now, at the moment, these days连用。"
+  },
+  {
+    "id": "past-continuous",
+    "title": "过去进行时 (Past Continuous)",
+    "detail": "结构：was/were + 现在分词。表示过去某个时间点正在进行的动作，或与另一个过去动作同时发生。商务场景：描述过去背景情况（I was working on the report when you called.），说明时间线上的动作（They were discussing the merger when I arrived.），解释过去的持续过程（The team was preparing for the audit all morning.）。"
+  },
+  {
+    "id": "simple-past",
+    "title": "一般过去时 (Simple Past)",
+    "detail": "结构：动词过去式（规则-ed或特殊不规则）。表示过去发生的具体动作或状态，与现在无关。商务场景：报告已完成的事实（We signed the contract last week.），总结过去会议（The meeting was productive.），描述历史数据（Our sales increased by 10% in 2020.）。常与yesterday, last week/month/year, in 2020, ago连用。"
+  },
+  {
+    "id": "simple-future",
+    "title": "一般将来时 (Simple Future)",
+    "detail": "结构：will/shall + 动词原形，或be going to + 动词原形。表示未来将要发生的动作或计划。商务场景：will用于预测（The market will grow.）、决定（I will call you.）、承诺（We will deliver on time.）；be going to用于既定计划（We are going to launch a new ad campaign.）。常与tomorrow, next week/month/year, soon连用。"
+  }
+]

@@ -8,6 +8,7 @@ import deepseek141150 from "@/data/business-deepseek-141-150.json";
 import deepseek151160 from "@/data/business-deepseek-151-160.json";
 import deepseek161170 from "@/data/business-deepseek-161-170.json";
 import deepseek171180 from "@/data/business-deepseek-171-180.json";
+import deepseekEnglishRules from "@/data/business-deepseek-english-rules.json";
 
 export type BusinessWord = { surface: string; reading: string; meaning: string };
 type LanguageAnalysis = { readings: { surface: string; reading: string }[]; verbs: { surface: string; base: string; reading: string }[] };
@@ -38,6 +39,10 @@ const deepseek161170ByLine = Object.fromEntries(
 const deepseek171180ByLine = Object.fromEntries(
   (deepseek171180 as DeepSeekSentenceNote[]).map(item => [item.line, item]),
 ) as Record<string, DeepSeekSentenceNote>;
+type DeepSeekEnglishRule = { id: string; title: string; detail: string };
+const deepseekEnglishRulesById = Object.fromEntries(
+  (deepseekEnglishRules as DeepSeekEnglishRule[]).map(item => [item.id, item]),
+) as Record<string, DeepSeekEnglishRule>;
 
 const page110ReadingsByLine: Record<string, BusinessWord[]> = {
   "③ブラック：部長、すいません。今から三崎産業へ行くんですが、直帰してもかまいませんか。": [
@@ -218,16 +223,26 @@ export const grammarMemoForBusinessLine = (line: string) => {
     return [{ title: "DeepSeek 本句语法详解", detail: page161170Note.grammar }];
   }
   if (/[A-Za-z]{3}/.test(line) && !/[ぁ-んァ-ン一-龯]/.test(line)) {
-    const englishRules = [
-      { test: /has been designed/, title: "Present perfect passive", detail: "“has been designed” 是现在完成时的被动语态：has/have + been + 过去分词。表示设计这一动作已经完成，而且结果与现在仍有关联。" },
-      { test: /who have mastered/, title: "Relative clause", detail: "“who have mastered ...” 是由 who 引导的定语从句，修饰前面的 people。who 在从句中作主语，have mastered 使用现在完成时，强调已经掌握基础日语。" },
-      { test: /in order to/, title: "Purpose: in order to", detail: "“in order to + 动词原形”表示目的，即“为了……”。语气比单独使用 to 更明确，否定形式是 in order not to。" },
-      { test: /should (?:not )?be used/, title: "Modal passive", detail: "“should + be + 过去分词”是情态动词的被动结构，表示某事应该或不应该被怎样处理。should 后始终使用动词原形 be。" },
-      { test: /can(?:'t|not)? be/, title: "Modal verb + passive", detail: "can/cannot 后接动词原形；“can be + 过去分词”构成被动语态，表示某事能够被完成或被使用。" },
-      { test: /When /, title: "Time clause with when", detail: "when 引导时间状语从句，说明主句动作发生的时间或场景。用于目录标题时常省略主句，把它理解为“当……时所使用的表达”。" },
-      { test: /Making|Introducing|Expressing|Giving|Asking|Turning|Inviting|Accepting|Reporting|Explaining|Confirming/, title: "Gerund phrase", detail: "这里使用动名词（动词 + -ing）作为标题中心语，把一个动作当作主题或事项，例如 Making a request 表示“提出请求”这一行为。" },
-    ].filter(rule => rule.test.test(line));
-    return englishRules.length ? englishRules : [{ title: "English structure", detail: "本行是英文标题或说明。目录标题通常采用名词短语或动名词短语，省略完整句子的主语和谓语，使表达简洁。页码前的短语表示该章节所讲的交际功能。" }];
+    const patterns: { test: RegExp; id: string }[] = [
+      { test: /\b(?:have|has)\s+(?:\w+ed|been|done|gone|made|seen|heard|said|taken|given|written|known|come|become)\b/i, id: "present-perfect" },
+      { test: /\bhad\s+(?:\w+ed|been|done|gone|made|seen|heard|said|taken|given|written|known)\b/i, id: "past-perfect" },
+      { test: /\b(?:am|is|are|was|were|be|been)\s+\w+(?:ed|en)\b/i, id: "passive-voice" },
+      { test: /\b(?:can|could|may|might|must|should|would|will)\b/i, id: "modal-verbs" },
+      { test: /\bif\b/i, id: "conditionals" },
+      { test: /\b(?:who|which|that|whose)\b/i, id: "relative-clauses" },
+      { test: /\b(?:think|know|believe|confirm|say|tell|hope)\s+(?:that\s+)?/i, id: "object-clauses" },
+      { test: /(?:could|would) you (?:tell|let|please)|do you know (?:if|whether|when|where|who|what|how)/i, id: "indirect-questions" },
+      { test: /\b\w+ing\b/i, id: "gerunds" },
+      { test: /\bto\s+[a-z]+\b/i, id: "infinitives" },
+      { test: /\b(?:would|could) you\b|would you mind/i, id: "polite-requests-would-could" },
+      { test: /\bshould\b|had better|you'd better/i, id: "suggestions-should-had-better" },
+      { test: /\b(?:am|is|are)\s+\w+ing\b/i, id: "present-continuous" },
+      { test: /\b(?:was|were)\s+\w+ing\b/i, id: "past-continuous" },
+      { test: /\b(?:yesterday|last week|last month|ago)\b/i, id: "simple-past" },
+      { test: /\b(?:will|shall|going to)\b/i, id: "simple-future" },
+    ];
+    const matched = patterns.filter(rule => rule.test.test(line)).slice(0, 3).map(rule => deepseekEnglishRulesById[rule.id]).filter(Boolean);
+    return matched.length ? matched.map(rule => ({ title: `DeepSeek · ${rule.title}`, detail: rule.detail })) : [{ title: "DeepSeek · 商务英文句型", detail: "本句采用商务会话常见的完整陈述或问答结构。先辨认主语、谓语和宾语，再根据时态判断动作发生时间；带 please、疑问形式或缓和词时，重点体会其降低命令感、保持礼貌和专业语气的作用。" }];
   }
   const rules: { test: RegExp; title: string; detail: string }[] = [
     { test: /と申します/, title: "～と申します", detail: "「～と言います」的谦逊表达，用于商务自我介绍。" },
