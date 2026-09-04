@@ -21,6 +21,18 @@ function BusinessCard() {
   </Link>;
 }
 
+function N2GrammarCard() {
+  return <Link href="/n2-grammar-blue" className="group block overflow-hidden rounded-[1.6rem] border border-[#dedbd1] bg-white transition hover:-translate-y-1 hover:shadow-xl hover:shadow-[#547565]/10">
+    <div className="h-2 bg-[#78928a]"/>
+    <div className="p-5">
+      <div className="mb-6 flex items-center justify-between"><span className="rounded-full bg-cream px-3 py-1 text-xs font-bold text-matcha">N2 · 文法 · 264页</span><BookOpenText size={20} className="text-[#98a19d]"/></div>
+      <h3 className="mb-2 text-xl font-bold">蓝宝书 N2 文法</h3>
+      <p className="min-h-10 text-sm leading-6 text-[#777f7b]">原页对照、日文识别、点击朗读、假名与语法解释。</p>
+      <div className="mt-5 flex items-center justify-end text-xs font-bold text-matcha">开始学习 <MoveRight size={15} className="ml-1 transition group-hover:translate-x-1"/></div>
+    </div>
+  </Link>;
+}
+
 export default function LibraryPage() {
   const [level, setLevel] = useState("全部");
   const isBusiness = level === businessLabel;
@@ -35,6 +47,7 @@ export default function LibraryPage() {
       {levels.map(item => <button key={item} onClick={() => setLevel(item)} className={`rounded-full px-4 py-2 text-sm font-bold transition ${level === item ? "bg-matcha text-white" : "border border-[#d7d4cb] bg-white hover:border-matcha"}`}>{item}</button>)}
     </div>
     {(shown.length || isBusiness || level === "全部") ? <div className="grid gap-5 md:grid-cols-3">
+      {(level === "全部" || level === "N2") && <N2GrammarCard/>}
       {(level === "全部" || isBusiness) && <BusinessCard/>}
       {shown.map(lesson => <LessonCard key={lesson.id} lesson={lesson}/>)}
     </div> : <div className="rounded-3xl border border-dashed border-[#cbc8be] py-20 text-center text-[#858b88]">这个等级的资料正在准备中</div>}

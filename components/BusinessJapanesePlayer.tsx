@@ -64,7 +64,7 @@ const isSubheading = (text: string) => /^[0-9０-９]{1,2}[.．、]?(?![0-9０-�
   && text.length < 60
   && !/[.!?。！？]$/.test(text);
 
-export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
+export default function BusinessJapanesePlayer({ pages, lessonId = "business-japanese", bookTitle = "実用ビジネス日本語", audioKeyPrefix = "" }: { pages: Page[]; lessonId?: string; bookTitle?: string; audioKeyPrefix?: string }) {
   const audioPlayer = useRef<HTMLAudioElement | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [segment, setSegment] = useState(0);
@@ -88,21 +88,21 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   const group = page.groups[segment];
   const isEnglishPage = page.page === 5 || (page.page >= 174 && page.page <= 201);
   useEffect(() => {
-    const value = getLessonProgress("business-japanese");
+    const value = getLessonProgress(lessonId);
     if (value?.position) setPageIndex(Math.min(pages.length - 1, Math.floor(value.position)));
-  }, [pages.length]);
+  }, [lessonId, pages.length]);
   useEffect(() => {
     audioPlayer.current?.pause(); audioPlayer.current = null;
     setPlaying(false); setAudioError(""); setActiveVoice(""); setActiveLine("");
   }, [pageIndex, segment, speed]);
   useEffect(() => () => { audioPlayer.current?.pause(); }, []);
   useEffect(() => {
-    try { setPersonalNotes(JSON.parse(localStorage.getItem("hibiki-business-notes") ?? "{}")); } catch { setPersonalNotes({}); }
+    try { setPersonalNotes(JSON.parse(localStorage.getItem(`hibiki-${lessonId}-notes`) ?? "{}")); } catch { setPersonalNotes({}); }
     setGithubToken(sessionStorage.getItem("hibiki-github-token") ?? "");
     fetch(`https://raw.githubusercontent.com/lacey007/hou-japanese/main/data/shared-notes.json?t=${Date.now()}`, { cache: "no-store" }).then(response => response.ok ? response.json() : {}).then(setSharedNotes).catch(() => setSharedNotes({}));
-  }, []);
+  }, [lessonId]);
 
-  const save = (nextPage: number) => saveProgress({ lessonId: "business-japanese", position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 });
+  const save = (nextPage: number) => saveProgress({ lessonId, position: nextPage, percent: Math.round((nextPage + 1) / pages.length * 100), completed: nextPage === pages.length - 1 });
   const changePage = (next: number) => { const bounded = Math.max(0, Math.min(pages.length - 1, next)); setPageIndex(bounded); setSegment(0); void save(bounded); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const changeSegment = (next: number) => {
     if (next < 0) return segment > 0 ? setSegment(segment - 1) : changePage(pageIndex - 1);
@@ -136,16 +136,24 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
   };
   const speak = async () => {
     if (!group) return;
-    const entries = group.lines.map((_, index) => { const key = `${page.page}-${segment}-${index}`; return { key, audio: neuralAudio[key] }; }).filter((item): item is { key: string; audio: AudioEntry } => Boolean(item.audio));
+    const entries = group.lines.map((_, index) => { const bareKey = `${page.page}-${segment}-${index}`; const key = audioKeyPrefix ? `${audioKeyPrefix}-${bareKey}` : bareKey; return { key, audio: neuralAudio[key] }; }).filter((item): item is { key: string; audio: AudioEntry } => Boolean(item.audio));
+    if (!entries.length && typeof window !== "undefined" && "speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(group.lines.map(cleanSpokenText).join("。"));
+      utterance.lang = "ja-JP"; utterance.rate = speed;
+      utterance.onstart = () => { setPlaying(true); setActiveVoice("设备日语语音"); };
+      utterance.onend = () => { setPlaying(false); if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); };
+      utterance.onerror = () => { setPlaying(false); setAudioError("当前设备没有可用的日语语音。"); };
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(utterance); return;
+    }
     playEntries(entries, () => { if (loop) setTimeout(() => void speak(), 100); else changeSegment(segment + 1); });
   };
   const toggle = () => { if (playing || loading) stopAudio(); else void speak(); };
   const groupWords = group ? [...new Map(group.lines.flatMap(wordsForBusinessLine).map(word => [word.surface, word])).values()] : [];
-  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { saveLocalWord({ lessonId: "business-japanese", ...word }); setSaved(items => [...new Set([...items, word.surface])]); };
+  const saveWord = async (word: { surface: string; reading: string; meaning: string }) => { saveLocalWord({ lessonId, ...word }); setSaved(items => [...new Set([...items, word.surface])]); };
   const savePersonalNote = (key: string, value: string) => {
     const next = { ...personalNotes, [key]: value };
     setPersonalNotes(next);
-    localStorage.setItem("hibiki-business-notes", JSON.stringify(next));
+    localStorage.setItem(`hibiki-${lessonId}-notes`, JSON.stringify(next));
   };
   const publishPersonalNote = async (key: string) => {
     const value = personalNotes[key]?.trim();
@@ -168,15 +176,28 @@ export default function BusinessJapanesePlayer({ pages }: { pages: Page[] }) {
       setSharedNotes(next); setSyncStatus("已提交。其他浏览器重新打开网页后即可看到。GitHub Pages也会自动重新发布。");
     } catch (error) { setSyncStatus(error instanceof Error ? error.message : "笔记提交失败。"); }
   };
-  const speakLine = async (_text: string, key: string) => { const audio = neuralAudio[key]; playEntries(audio ? [{ key, audio }] : []); };
+  const speakLine = async (text: string, bareKey: string) => {
+    const key = audioKeyPrefix ? `${audioKeyPrefix}-${bareKey}` : bareKey;
+    const audio = neuralAudio[key];
+    if (audio) { playEntries([{ key, audio }]); return; }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(cleanSpokenText(text));
+      utterance.lang = "ja-JP"; utterance.rate = speed;
+      utterance.onstart = () => { setPlaying(true); setActiveLine(bareKey); setActiveVoice("设备日语语音"); };
+      utterance.onend = () => { setPlaying(false); setActiveLine(""); };
+      utterance.onerror = () => { setPlaying(false); setActiveLine(""); setAudioError("当前设备没有可用的日语语音。"); };
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(utterance); return;
+    }
+    setAudioError("当前设备没有可用的日语语音。");
+  };
 
   return <div className={`grid gap-6 ${showImage ? "xl:grid-cols-[minmax(360px,.9fr)_minmax(440px,1.1fr)]" : "grid-cols-1"}`}>
     <aside className={`${showImage ? "block" : "hidden"} h-fit overflow-hidden rounded-[1.75rem] border border-[#dedbd1] bg-[#e9e6de] xl:sticky xl:top-24`}>
-      <img src={page.image} alt={`実用ビジネス日本語 第${page.page}页`} className="mx-auto max-h-[82vh] w-full object-contain"/>
+      <img src={page.image} alt={`${bookTitle} 第${page.page}页`} className="mx-auto max-h-[82vh] w-full object-contain"/>
     </aside>
     <section className="overflow-hidden rounded-[1.75rem] border border-[#dedbd1] bg-white">
       <div className="border-b border-[#e5e2da] bg-[#f0eee7] p-5 md:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / 203</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.14em] text-sakura">PAGE {String(page.page).padStart(3, "0")} / {pages.length}</p><p className="mt-1 text-sm text-[#747c78]">第 {segment + 1} 段，共 {Math.max(page.groups.length, 1)} 段 · 整段连续朗读</p></div><button onClick={() => setShowImage(!showImage)} className="flex items-center gap-2 rounded-full border border-[#d1cec6] bg-white px-3 py-2 text-xs"><ImageIcon size={15}/>{showImage ? "隐藏原页" : "显示原页"}</button></div>
         <div className="mt-5 flex items-center gap-3"><button onClick={toggle} disabled={!page.groups.length || loading} className="grid h-14 w-14 place-items-center rounded-full bg-matcha text-white shadow-lg shadow-matcha/20">{loading ? <LoaderCircle className="animate-spin"/> : playing ? <Pause fill="currentColor"/> : <Play className="ml-1" fill="currentColor"/>}</button><div className="flex flex-1 flex-wrap gap-2"><button onClick={() => changeSegment(segment - 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs"><ChevronLeft size={15}/>上一段</button><button onClick={() => changeSegment(segment + 1)} className="flex items-center rounded-full border bg-white px-3 py-2 text-xs">下一段<ChevronRight size={15}/></button><button onClick={() => setLoop(!loop)} className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs ${loop ? "bg-sakura text-white" : "border bg-white"}`}><Repeat1 size={15}/>整段循环</button></div></div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs"><div className="flex min-w-0 items-center gap-2"><span className="rounded-full border bg-white px-3 py-2">{isEnglishPage ? "Aria · Neural 英文女声" : "Nanami · Neural 日语女声"}</span><span className="rounded-full border bg-white px-3 py-2">{isEnglishPage ? "Guy · Neural 英文男声" : "Keita · Neural 日语男声"}</span></div><div className="flex items-center gap-1"><Gauge size={15}/>{[.5,.75,1,1.25,1.5].map(rate => <button key={rate} onClick={() => setSpeed(rate)} className={`rounded-lg px-2 py-1 ${speed === rate ? "bg-matcha text-white" : "hover:bg-white"}`}>{rate}×</button>)}</div></div>
         <p className="mt-2 text-xs text-[#75807a]">已改用预生成的 Microsoft Neural 自然语音；整段对话会根据说话人自动切换{isEnglishPage ? " Aria 英文女声与 Guy 英文男声" : " Nanami 日语女声与 Keita 日语男声"}。</p>

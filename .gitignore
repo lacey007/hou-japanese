@@ -18,3 +18,8 @@ vendor/
 runtime-deps/
 outputs/
 public/business-japanese/
+.n2-ocr/
+.easyocr/
+.easyocr-user/
+.uv-cache/
+tmp/n2-preview/
