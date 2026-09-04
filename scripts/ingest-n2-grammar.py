@@ -33,8 +33,19 @@ def main() -> None:
         download_enabled=False,
         verbose=False,
     )
-    pages = []
-    images = sorted(IMAGE_DIR.glob("page-*.jpg"))
+    all_images = sorted(IMAGE_DIR.glob("page-*.jpg"))
+    start_page = max(1, int(os.environ.get("START_PAGE", "1")))
+    end_page = min(len(all_images), int(os.environ.get("END_PAGE", str(len(all_images)))))
+    images = [
+        path for path in all_images
+        if start_page <= int(path.stem.split("-")[-1]) <= end_page
+    ]
+    existing = json.loads(OUTPUT.read_text(encoding="utf-8")) if OUTPUT.exists() else []
+    pages_by_number = {int(item["page"]): item for item in existing}
+
+    if not images:
+        raise SystemExit(f"No page images found in range {start_page}-{end_page}")
+
     for start in range(0, len(images), 8):
         batch = images[start : start + 8]
         results = reader.readtext_batched(
@@ -54,14 +65,19 @@ def main() -> None:
                 clean = re.sub(r"\s+", " ", text).strip()
                 if confidence >= 0.22 and useful(clean) and clean not in lines:
                     lines.append(clean)
-            pages.append({
+            pages_by_number[page] = {
                 "page": page,
                 "image": f"/n2-grammar-blue/{path.name}",
                 "segments": lines,
                 "groups": [{"title": "", "lines": lines}],
-            })
+            }
+        pages = [pages_by_number[number] for number in sorted(pages_by_number)]
         OUTPUT.write_text(json.dumps(pages, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"PROGRESS {min(start + 8, len(images))}/{len(images)}", flush=True)
+        print(
+            f"PROGRESS {min(start + 8, len(images))}/{len(images)} "
+            f"(pages {start_page}-{end_page})",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":
